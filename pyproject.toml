@@ -1,5 +1,5 @@
 [project]
-name = "seaborn-paracoord"
+name = "seaborn-paracoords"
 version = "0.0.2"
 description = "A prototype implementation of parallel coordinates plots compatible with Seaborn's API and styling system."
 authors = [{name = "Jannik Kissinger", email = "github@michelfe.it"}]
@@ -28,11 +28,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jannikmi/seaborn-paracoord"
-Repository = "https://github.com/jannikmi/seaborn-paracoord"
-Documentation = "https://github.com/jannikmi/seaborn-paracoord/blob/main/README.md"
-"Bug Tracker" = "https://github.com/jannikmi/seaborn-paracoord/issues"
-Changelog = "https://github.com/jannikmi/seaborn-paracoord/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/jannikmi/seaborn-paracoords"
+Repository = "https://github.com/jannikmi/seaborn-paracoords"
+Documentation = "https://github.com/jannikmi/seaborn-paracoords/blob/main/README.md"
+"Bug Tracker" = "https://github.com/jannikmi/seaborn-paracoords/issues"
+Changelog = "https://github.com/jannikmi/seaborn-paracoords/blob/main/CHANGELOG.md"
 
 
 [dependency-groups]

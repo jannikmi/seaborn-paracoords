@@ -773,7 +773,7 @@ wheels = [
 ]
 
 [[package]]
-name = "seaborn-paracoord"
+name = "seaborn-paracoords"
 version = "0.0.2"
 source = { editable = "." }
 dependencies = [

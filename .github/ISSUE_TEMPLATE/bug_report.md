@@ -66,7 +66,7 @@ Please complete the following information:
 **Package versions** (run `pip list` or `uv pip list`):
 
 ```text
-seaborn-paracoord==x.x.x
+seaborn-paracoords==x.x.x
 seaborn==x.x.x
 matplotlib==x.x.x
 pandas==x.x.x

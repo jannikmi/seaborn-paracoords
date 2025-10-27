@@ -37,8 +37,8 @@ This project is in its **early development stage** and welcomes contributions fr
 1. **Fork and clone the repository**
 
    ```bash
-   gh repo fork jannikmi/seaborn-paracoord --clone
-   cd seaborn-paracoord
+   gh repo fork jannikmi/seaborn-paracoords --clone
+   cd seaborn-paracoords
    ```
 
 2. **Install dependencies using uv**
@@ -324,8 +324,8 @@ When suggesting a feature:
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/jannikmi/seaborn-paracoord/discussions) for general questions
-- Open an [Issue](https://github.com/jannikmi/seaborn-paracoord/issues) for bugs or feature requests
+- Open a [GitHub Discussion](https://github.com/jannikmi/seaborn-paracoords/discussions) for general questions
+- Open an [Issue](https://github.com/jannikmi/seaborn-paracoords/issues) for bugs or feature requests
 - Check existing issues and discussions first
 
 ---

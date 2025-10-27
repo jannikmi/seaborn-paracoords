@@ -1,6 +1,6 @@
 # Seaborn Parallel Coordinates Plot
 
-[![CI](https://github.com/jannikmi/seaborn-paracoord/workflows/CI/badge.svg)](https://github.com/jannikmi/seaborn-paracoord/actions)
+[![CI](https://github.com/jannikmi/seaborn-paracoords/workflows/CI/badge.svg)](https://github.com/jannikmi/seaborn-paracoords/actions)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
@@ -67,8 +67,8 @@ This project provides a `parallelplot()` function that creates parallel coordina
 
 ```bash
 # Clone the repository
-gh repo clone jannikmi/seaborn-paracoord
-cd seaborn-paracoord
+gh repo clone jannikmi/seaborn-paracoords
+cd seaborn-paracoords
 
 # Install dependencies using uv (recommended)
 uv sync --all-groups

@@ -115,6 +115,6 @@ Security-related changes
 
 ---
 
-[Unreleased]: https://github.com/jannikmi/seaborn-paracoord/compare/v0.0.2...HEAD
-[0.0.2]: https://github.com/jannikmi/seaborn-paracoord/compare/v0.0.1...v0.0.2
-[0.0.1]: https://github.com/jannikmi/seaborn-paracoord/releases/tag/v0.0.1
+[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.1...v0.0.2
+[0.0.1]: https://github.com/jannikmi/seaborn-paracoords/releases/tag/v0.0.1
