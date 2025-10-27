@@ -50,5 +50,8 @@ test-parallel:  ## Test parallel coordinates module
 
 parallel-dev: test-parallel  ## Full parallel plot development cycle
 
+mypy:
+	uv run mypy src/
+
 
 .PHONY: clean test build docs parallel-demo test-parallel parallel-dev

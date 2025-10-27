@@ -38,7 +38,6 @@ Changelog = "https://github.com/jannikmi/seaborn-paracoord/blob/main/CHANGELOG.m
 
 [dependency-groups]
 test=[
-    "tox",
     "pytest",
 ]
 # development and parsing data
@@ -47,9 +46,10 @@ dev = [
     "pytest",
     "pre-commit",
     "mypy",
+    "types-seaborn",
+    "pandas-stubs",
     "isort",
     "ruff",
-    "pydantic>=2.11.7",
 ]
 
 [build-system]

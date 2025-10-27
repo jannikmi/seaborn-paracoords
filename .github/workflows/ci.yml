@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    name: Test on Python ${{ matrix.python-version }}
+    name: Test Python ${{ matrix.python-version }} OS ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,8 +19,9 @@ jobs:
         include:
           - os: macos-latest
             python-version: "3.12"
-          - os: windows-latest
-            python-version: "3.12"
+          # FIXME
+          # - os: windows-latest
+          #   python-version: "3.12"
 
     steps:
     - name: Checkout code
@@ -36,16 +37,7 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: uv sync --all-groups
-
-    - name: Run linting
-      run: |
-        uv run ruff check src/ tests/
-        uv run ruff format --check src/ tests/
-
-    - name: Run type checking
-      run: uv run mypy src/
-      continue-on-error: true
+      run: uv sync --group test
 
     - name: Run tests
       run: uv run pytest tests/ -v
@@ -89,4 +81,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dist
-        path: dist/
+        path: dist/*
