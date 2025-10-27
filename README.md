@@ -48,7 +48,6 @@ This prototype is inspired by Seaborn’s high-level, declarative approach:
 - Orientation, color, and style are easily controlled with intuitive parameters.
 - The API is designed to be familiar to Seaborn users, but is implemented outside the Seaborn library for rapid prototyping and experimentation.
 
-
 ## Features
 
 - 🎨 **Seaborn Integration** - Works seamlessly with Seaborn's color palettes and styling
@@ -76,7 +75,6 @@ uv sync --all-groups
 # Or install manually
 pip install -e .
 ```
-
 
 ## Usage
 
@@ -132,7 +130,6 @@ uv run python scripts/demo_categorical_axes.py  # New!
 uv run python scripts/run_all_demos.py
 ```
 
-
 ## API Documentation
 
 The `parallelplot()` function provides a flexible interface for creating parallel coordinates visualizations.
@@ -171,6 +168,7 @@ ax = snp.parallelplot(df, hue="region")
 ```
 
 **Features:**
+
 - ✨ Automatic detection of non-numeric columns
 - 🎯 Explicit control via `categorical_axes` parameter
 - 📊 Custom category ordering with `category_orders`
@@ -192,7 +190,6 @@ See the demo scripts for visual examples of both modes:
 - [`demo_comparison.py`](scripts/demo_comparison.py) - Side-by-side comparison
 - [`demo_scaling_verification.py`](scripts/demo_scaling_verification.py) - Detailed scaling examples
 
-
 ## Running the Examples
 
 The repository includes several demo scripts:
@@ -210,7 +207,6 @@ uv run python src/seaborn_parallel/parallelplot.py
 
 Output images are saved to the `tmp/` directory.
 
-
 ## Testing
 
 ```bash
@@ -223,7 +219,6 @@ uv run pytest tests/ --cov=src --cov-report=html
 # Run specific test
 uv run pytest tests/test_parallelplot.py::test_sharex_parameter -v
 ```
-
 
 ## Development
 
@@ -246,23 +241,19 @@ make lint
 uv sync --all-groups
 ```
 
-
 ## Known Limitations
 
 - Individual axis tick labels are displayed as text annotations when not using shared axes
 - Large datasets may require adjustment of `alpha` and `linewidth` for readability
-- ⚠️ **Breaking change in v0.0.2**: When `vars=None`, all columns (including categorical) are selected instead of only numeric columns. To restore old behavior, explicitly pass numeric columns via the `vars` parameter.
-
+- When `vars=None`, all columns (including categorical) are selected instead of only numeric columns.
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to contribute to this project.
 
-
 ## License
 
 See LICENSE file for details.
-
 
 ## Acknowledgments
 
