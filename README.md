@@ -56,6 +56,7 @@ This prototype is inspired by Seaborn’s high-level, declarative approach:
 - 🎯 **Original Axis Values** - Displays actual data ranges by default (not normalized 0-1)
 - 🔗 **Shared Axis Scaling** - Optional `sharex`/`sharey` parameters for unified scales
 - 🌈 **Color Encoding** - Built-in support for categorical color mapping via `hue` parameter
+- 📋 **Categorical Axes** - Full support for categorical variables with automatic detection
 - ⚙️ **Customizable** - Full control over line transparency, width, and matplotlib styling
 
 ## Overview
@@ -79,6 +80,43 @@ pip install -e .
 
 ## Usage
 
+### Basic Example
+
+```python
+import pandas as pd
+import seaborn_parallel as snp
+
+# Numeric data
+df = pd.DataFrame({
+    "var1": [1, 2, 3, 4],
+    "var2": [5, 6, 7, 8],
+    "var3": [9, 10, 11, 12]
+})
+
+ax = snp.parallelplot(df, orientation="horizontal")
+```
+
+### Categorical Axes
+
+```python
+# Mixed-type data with categorical variables
+df = pd.DataFrame({
+    "species": ["setosa", "versicolor", "virginica", "setosa"],
+    "sepal_length": [5.1, 7.0, 6.3, 4.9],
+    "petal_width": [0.2, 1.3, 2.5, 0.2]
+})
+
+# Categorical columns are automatically detected!
+ax = snp.parallelplot(df, hue="species")
+
+# Or specify explicitly with custom ordering
+ax = snp.parallelplot(
+    df,
+    categorical_axes=["species"],
+    category_orders={"species": ["setosa", "versicolor", "virginica"]}
+)
+```
+
 See the [example scripts](scripts/) for demonstration of various features:
 
 ```bash
@@ -88,6 +126,7 @@ uv run python src/seaborn_parallel/parallelplot.py
 # Run demo scripts
 uv run python scripts/demo_iris_vertical.py
 uv run python scripts/demo_comparison.py
+uv run python scripts/demo_categorical_axes.py  # New!
 
 # Run all demos
 uv run python scripts/run_all_demos.py
@@ -103,13 +142,42 @@ The `parallelplot()` function provides a flexible interface for creating paralle
 **Key Parameters:**
 
 - `data`: Input DataFrame
-- `vars`: Variables to plot (auto-selected if None)
+- `vars`: Variables to plot (defaults to all columns including categorical)
 - `hue`: Variable for color encoding
 - `orientation`: "vertical" or "horizontal"
-- `sharex`/`sharey`: Share axis ranges across variables
+- `sharex`/`sharey`: Share axis ranges across numeric variables
+- `categorical_axes`: Explicitly specify categorical variables (auto-detected if None)
+- `category_orders`: Custom ordering for categorical variables
 - `alpha`, `linewidth`, `palette`: Styling options
 
 ## Key Features
+
+### Categorical Axis Support
+
+**Automatically visualize mixed-type datasets** with both numeric and categorical variables:
+
+```python
+import seaborn_parallel as snp
+
+df = pd.DataFrame({
+    "region": ["North", "South", "East", "West"],
+    "product": ["A", "B", "C", "D"],
+    "sales": [100, 150, 200, 250],
+    "profit": [20, 30, 40, 50]
+})
+
+# Categorical columns auto-detected!
+ax = snp.parallelplot(df, hue="region")
+```
+
+**Features:**
+- ✨ Automatic detection of non-numeric columns
+- 🎯 Explicit control via `categorical_axes` parameter
+- 📊 Custom category ordering with `category_orders`
+- 🔄 Works with both orientations
+- 🎨 Integrates with `hue` and all styling options
+
+See [`demo_categorical_axes.py`](scripts/demo_categorical_axes.py) for comprehensive examples!
 
 ### Default Behavior: Original Axis Values
 
@@ -183,7 +251,7 @@ uv sync --all-groups
 
 - Individual axis tick labels are displayed as text annotations when not using shared axes
 - Large datasets may require adjustment of `alpha` and `linewidth` for readability
-- Currently supports numeric data only
+- ⚠️ **Breaking change in v0.0.2**: When `vars=None`, all columns (including categorical) are selected instead of only numeric columns. To restore old behavior, explicitly pass numeric columns via the `vars` parameter.
 
 
 ## Contributing

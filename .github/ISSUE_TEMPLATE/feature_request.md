@@ -34,11 +34,11 @@ A clear and concise description of what you want to happen. Include:
 
 ```python
 import pandas as pd
-from seaborn_parallel import parallelplot
+import seaborn_parallel as snp
 
 # Show how you envision using this feature
 df = pd.DataFrame(...)
-ax = parallelplot(df, new_parameter=value)
+ax = snp.parallelplot(df, new_parameter=value)
 ```
 
 ## Alternatives Considered

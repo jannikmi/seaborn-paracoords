@@ -23,7 +23,7 @@ Steps to reproduce the behavior:
 
 ```python
 import pandas as pd
-from seaborn_parallel import parallelplot
+import seaborn_parallel as snp
 
 # Provide minimal code that reproduces the issue
 df = pd.DataFrame({
@@ -31,7 +31,7 @@ df = pd.DataFrame({
     'b': [4, 5, 6]
 })
 
-ax = parallelplot(df)  # Add your specific parameters
+ax = snp.parallelplot(df)  # Add your specific parameters
 ```
 
 ## Expected Behavior

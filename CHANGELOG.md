@@ -9,9 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Add support for categorical variables on select axes
 - Enhanced customization options for axis styling
 - Integration with Seaborn's FacetGrid for multi-plot layouts
+
+## [0.0.2] - 2025-10-27
+
+### Added
+
+- **Categorical Axis Support**: Full support for categorical variables in parallel coordinates plots
+  - Automatic detection of non-numeric columns as categorical axes
+  - `categorical_axes` parameter for explicit categorical axis specification
+  - `category_orders` parameter for custom ordering of categories
+  - Visual distinction of categorical labels (bold font weight)
+  - Seamless integration with both vertical and horizontal orientations
+  - Compatibility with `hue`, `sharex`, and `sharey` parameters
+- New demo script: `demo_categorical_axes.py` showcasing categorical features with 5 examples
+- Comprehensive test coverage for categorical axes:
+  - Automatic detection
+  - Explicit specification
+  - Mixed-type datasets (categorical + numeric)
+  - Custom category ordering
+- Documentation files:
+  - `CATEGORICAL_AXES_FEATURE.md` - Detailed implementation guide
+  - `CATEGORICAL_AXES_QUICKSTART.md` - Quick start guide with examples
+
+### Changed
+
+- ⚠️ **BREAKING**: When `vars=None`, `parallelplot()` now selects ALL columns (including categorical) instead of only numeric columns
+  - Migration: Explicitly pass numeric columns via `vars` parameter to restore old behavior
+  - New behavior enables automatic categorical axis detection
+- Updated docstring with new parameters and usage examples
+- Enhanced `_format_axis_ticks()` to guard against categorical ranges
 
 ## [0.0.1] - 2025-10-27
 
@@ -87,5 +115,6 @@ Security-related changes
 
 ---
 
-[Unreleased]: https://github.com/jannikmi/seaborn-paracoord/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/jannikmi/seaborn-paracoord/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/jannikmi/seaborn-paracoord/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/jannikmi/seaborn-paracoord/releases/tag/v0.0.1
