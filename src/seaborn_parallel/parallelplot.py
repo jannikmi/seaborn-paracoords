@@ -109,7 +109,6 @@ def parallelplot(
     if orientation not in ["vertical", "horizontal"]:
         raise ValueError("orientation must be 'vertical' or 'horizontal'")
 
-
     # Variable selection and validation
     if vars is None:
         vars = list(data.columns)
@@ -121,7 +120,9 @@ def parallelplot(
 
     # Detect categorical axes
     if categorical_axes is None:
-        categorical_axes = [col for col in vars if not pd.api.types.is_numeric_dtype(data[col])]
+        categorical_axes = [
+            col for col in vars if not pd.api.types.is_numeric_dtype(data[col])
+        ]
     else:
         for col in categorical_axes:
             if col not in vars:
@@ -146,7 +147,10 @@ def parallelplot(
         else:
             cats = list(df_plot[col].astype(str).unique())
         cat_orders[col] = cats
-        cat_maps[col] = {cat: i / (len(cats) - 1) if len(cats) > 1 else 0.5 for i, cat in enumerate(cats)}
+        cat_maps[col] = {
+            cat: i / (len(cats) - 1) if len(cats) > 1 else 0.5
+            for i, cat in enumerate(cats)
+        }
         # Map column to numeric positions for plotting
         df_plot[col] = df_plot[col].astype(str).map(cat_maps[col])
 
@@ -167,10 +171,13 @@ def parallelplot(
             stacklevel=2,
         )
 
-
     # Calculate shared range if requested (only for numeric axes)
     numeric_vars = [v for v in vars if v not in categorical_axes]
-    shared_range = _calculate_shared_range(df_plot[numeric_vars], sharex, sharey, orientation) if numeric_vars else None
+    shared_range = (
+        _calculate_shared_range(df_plot[numeric_vars], sharex, sharey, orientation)
+        if numeric_vars
+        else None
+    )
 
     # Normalize numeric data to [0,1] for plotting
     # Categorical axes are already mapped to [0,1]
@@ -192,7 +199,6 @@ def parallelplot(
         data.loc[df_plot.index] if hue else None, hue, palette, len(df_plot)
     )
 
-
     # Create line coordinates (pass categorical_axes and cat_orders for labeling)
     lines = _create_line_coordinates(df_normalized, orientation)
 
@@ -205,10 +211,18 @@ def parallelplot(
     )
     ax.add_collection(lc)
 
-
     # Configure axes (pass categorical_axes and cat_orders for labeling)
     _configure_axes(
-        ax, vars, orientation, ranges, shared_range, unique_vals, color_map, hue, categorical_axes, cat_orders
+        ax,
+        vars,
+        orientation,
+        ranges,
+        shared_range,
+        unique_vals,
+        color_map,
+        hue,
+        categorical_axes,
+        cat_orders,
     )
 
     return ax
@@ -320,7 +334,11 @@ def _format_axis_ticks(
         labels: List of formatted tick labels with original values
     """
     # Only operate on numeric ranges
-    if not (isinstance(var_range, tuple) and len(var_range) == 2 and all(isinstance(x, (int, float, np.integer, np.floating)) for x in var_range)):
+    if not (
+        isinstance(var_range, tuple)
+        and len(var_range) == 2
+        and all(isinstance(x, (int, float, np.integer, np.floating)) for x in var_range)
+    ):
         return np.array([]), []
 
     vmin, vmax = var_range
@@ -391,11 +409,19 @@ def _create_line_coordinates(df, orientation):
 
 
 def _configure_axes(
-    ax, vars, orientation, ranges, shared_range, unique_vals, color_map, hue, categorical_axes=None, cat_orders=None
+    ax,
+    vars,
+    orientation,
+    ranges,
+    shared_range,
+    unique_vals,
+    color_map,
+    hue,
+    categorical_axes=None,
+    cat_orders=None,
 ):
     """Configure axis limits, labels, ticks, and legend."""
     n_vars = len(vars)
-
 
     if categorical_axes is None:
         categorical_axes = []
@@ -442,7 +468,14 @@ def _configure_axes(
                 # Numeric axis, show numeric ticks as before
                 var_range = ranges[var]
                 # Only call _format_axis_ticks if var_range is numeric
-                if isinstance(var_range, tuple) and len(var_range) == 2 and all(isinstance(x, (int, float, np.integer, np.floating)) for x in var_range):
+                if (
+                    isinstance(var_range, tuple)
+                    and len(var_range) == 2
+                    and all(
+                        isinstance(x, (int, float, np.integer, np.floating))
+                        for x in var_range
+                    )
+                ):
                     positions, labels = _format_axis_ticks(var_range)
                     for pos, label in zip(positions, labels):
                         ax.text(
@@ -492,7 +525,14 @@ def _configure_axes(
                     )
             elif shared_range is None:
                 var_range = ranges[var]
-                if isinstance(var_range, tuple) and len(var_range) == 2 and all(isinstance(x, (int, float, np.integer, np.floating)) for x in var_range):
+                if (
+                    isinstance(var_range, tuple)
+                    and len(var_range) == 2
+                    and all(
+                        isinstance(x, (int, float, np.integer, np.floating))
+                        for x in var_range
+                    )
+                ):
                     positions, labels = _format_axis_ticks(var_range)
                     for pos, label in zip(positions, labels):
                         ax.text(

@@ -153,6 +153,7 @@ def test_sharey_parameter():
     assert len(ax.get_yticks()) > 0
     plt.close("all")
 
+
 def test_original_axis_values():
     df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30]})
     # Default behavior should show original values
@@ -163,13 +164,16 @@ def test_original_axis_values():
     assert ylim[0] < 0.1 and ylim[1] > 0.9
     plt.close("all")
 
+
 def test_categorical_axis_detection():
     """Test automatic detection and plotting of categorical axes."""
-    df = pd.DataFrame({
-        "species": ["setosa", "versicolor", "virginica", "setosa"],
-        "sepal_length": [5.1, 7.0, 6.3, 4.9],
-        "petal_width": [0.2, 1.3, 2.5, 0.2]
-    })
+    df = pd.DataFrame(
+        {
+            "species": ["setosa", "versicolor", "virginica", "setosa"],
+            "sepal_length": [5.1, 7.0, 6.3, 4.9],
+            "petal_width": [0.2, 1.3, 2.5, 0.2],
+        }
+    )
     # species should be detected as categorical
     ax = snp.parallelplot(df)
     assert ax is not None
@@ -178,26 +182,28 @@ def test_categorical_axis_detection():
     assert found
     plt.close("all")
 
+
 def test_categorical_axes_param():
     """Test explicit categorical_axes parameter."""
-    df = pd.DataFrame({
-        "cat": ["A", "B", "A", "C"],
-        "x": [1, 2, 3, 4],
-        "y": [10, 20, 30, 40]
-    })
+    df = pd.DataFrame(
+        {"cat": ["A", "B", "A", "C"], "x": [1, 2, 3, 4], "y": [10, 20, 30, 40]}
+    )
     ax = snp.parallelplot(df, vars=["cat", "x", "y"], categorical_axes=["cat"])
     assert ax is not None
     found = any("A" in t.get_text() for t in ax.texts)
     assert found
     plt.close("all")
 
+
 def test_mixed_type_axes():
     """Test plot with both categorical and numeric axes."""
-    df = pd.DataFrame({
-        "group": ["G1", "G2", "G1", "G2"],
-        "val1": [1.0, 2.0, 3.0, 4.0],
-        "val2": [5, 6, 7, 8]
-    })
+    df = pd.DataFrame(
+        {
+            "group": ["G1", "G2", "G1", "G2"],
+            "val1": [1.0, 2.0, 3.0, 4.0],
+            "val2": [5, 6, 7, 8],
+        }
+    )
     ax = snp.parallelplot(df, vars=["group", "val1", "val2"])
     assert ax is not None
     # Should show both category and numeric labels
@@ -206,16 +212,23 @@ def test_mixed_type_axes():
     assert found_cat and found_num
     plt.close("all")
 
+
 def test_category_orders():
     """Test custom category order for categorical axis."""
-    df = pd.DataFrame({
-        "cat": ["B", "A", "C", "B"],
-        "score": [1, 2, 3, 4]
-    })
-    ax = snp.parallelplot(df, vars=["cat", "score"], categorical_axes=["cat"], category_orders={"cat": ["C", "B", "A"]})
+    df = pd.DataFrame({"cat": ["B", "A", "C", "B"], "score": [1, 2, 3, 4]})
+    ax = snp.parallelplot(
+        df,
+        vars=["cat", "score"],
+        categorical_axes=["cat"],
+        category_orders={"cat": ["C", "B", "A"]},
+    )
     assert ax is not None
     # First label should be 'C' (custom order)
-    cat_labels = [t.get_text().strip() for t in ax.texts if t.get_text().strip() in ["A", "B", "C"]]
+    cat_labels = [
+        t.get_text().strip()
+        for t in ax.texts
+        if t.get_text().strip() in ["A", "B", "C"]
+    ]
     assert cat_labels[0] == "C"
     plt.close("all")
     """Test that original axis values are shown by default."""

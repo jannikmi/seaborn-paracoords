@@ -27,12 +27,14 @@ def demo_auto_categorical_detection():
     print("=" * 70)
 
     # Create mixed-type dataset
-    df = pd.DataFrame({
-        "species": ["setosa", "versicolor", "virginica", "setosa", "versicolor"],
-        "sepal_length": [5.1, 7.0, 6.3, 4.9, 6.5],
-        "sepal_width": [3.5, 3.2, 3.3, 3.0, 2.8],
-        "petal_width": [0.2, 1.3, 2.5, 0.2, 1.5]
-    })
+    df = pd.DataFrame(
+        {
+            "species": ["setosa", "versicolor", "virginica", "setosa", "versicolor"],
+            "sepal_length": [5.1, 7.0, 6.3, 4.9, 6.5],
+            "sepal_width": [3.5, 3.2, 3.3, 3.0, 2.8],
+            "petal_width": [0.2, 1.3, 2.5, 0.2, 1.5],
+        }
+    )
 
     print("\nDataset:")
     print(df)
@@ -40,17 +42,12 @@ def demo_auto_categorical_detection():
 
     fig, ax = plt.subplots(figsize=(12, 6))
     snp.parallelplot(
-        data=df,
-        hue="species",
-        orientation="vertical",
-        alpha=0.8,
-        linewidth=2.0,
-        ax=ax
+        data=df, hue="species", orientation="vertical", alpha=0.8, linewidth=2.0, ax=ax
     )
     ax.set_title(
         "Mixed-Type Data: Categorical & Numeric Axes\n(Automatic Detection)",
         fontsize=14,
-        fontweight="bold"
+        fontweight="bold",
     )
     plt.tight_layout()
     output_path = "./tmp/demo_categorical_auto_detection.png"
@@ -65,12 +62,14 @@ def demo_explicit_categorical():
     print("Demo 2: Explicit Categorical Axes Specification")
     print("=" * 70)
 
-    df = pd.DataFrame({
-        "category": ["A", "B", "C", "A", "B", "C"],
-        "value1": [10, 20, 15, 12, 18, 16],
-        "value2": [100, 200, 150, 120, 180, 160],
-        "group": ["X", "Y", "X", "Y", "X", "Y"]
-    })
+    df = pd.DataFrame(
+        {
+            "category": ["A", "B", "C", "A", "B", "C"],
+            "value1": [10, 20, 15, 12, 18, 16],
+            "value2": [100, 200, 150, 120, 180, 160],
+            "group": ["X", "Y", "X", "Y", "X", "Y"],
+        }
+    )
 
     print("\nDataset:")
     print(df)
@@ -85,12 +84,12 @@ def demo_explicit_categorical():
         orientation="vertical",
         alpha=0.7,
         linewidth=2.5,
-        ax=ax
+        ax=ax,
     )
     ax.set_title(
         "Explicit Categorical Axes\n(Multiple Categorical Variables)",
         fontsize=14,
-        fontweight="bold"
+        fontweight="bold",
     )
     plt.tight_layout()
     output_path = "./tmp/demo_categorical_explicit.png"
@@ -105,11 +104,13 @@ def demo_custom_category_order():
     print("Demo 3: Custom Category Ordering")
     print("=" * 70)
 
-    df = pd.DataFrame({
-        "size": ["small", "large", "medium", "small", "large", "medium"],
-        "score": [85, 95, 90, 88, 92, 87],
-        "rating": ["good", "excellent", "average", "good", "excellent", "average"]
-    })
+    df = pd.DataFrame(
+        {
+            "size": ["small", "large", "medium", "small", "large", "medium"],
+            "score": [85, 95, 90, 88, 92, 87],
+            "rating": ["good", "excellent", "average", "good", "excellent", "average"],
+        }
+    )
 
     print("\nDataset:")
     print(df)
@@ -125,7 +126,7 @@ def demo_custom_category_order():
         orientation="vertical",
         alpha=0.7,
         linewidth=2.0,
-        ax=ax1
+        ax=ax1,
     )
     ax1.set_title("Default Ordering\n(Alphabetical)", fontsize=12, fontweight="bold")
 
@@ -135,12 +136,12 @@ def demo_custom_category_order():
         categorical_axes=["size", "rating"],
         category_orders={
             "size": ["small", "medium", "large"],
-            "rating": ["average", "good", "excellent"]
+            "rating": ["average", "good", "excellent"],
         },
         orientation="vertical",
         alpha=0.7,
         linewidth=2.0,
-        ax=ax2
+        ax=ax2,
     )
     ax2.set_title("Custom Ordering\n(Logical Order)", fontsize=12, fontweight="bold")
 
@@ -173,12 +174,12 @@ def demo_horizontal_categorical():
         alpha=0.6,
         linewidth=1.5,
         palette="Set2",
-        ax=ax
+        ax=ax,
     )
     ax.set_title(
         "Iris Dataset - Horizontal Orientation\n(Categorical + Numeric Axes)",
         fontsize=14,
-        fontweight="bold"
+        fontweight="bold",
     )
     plt.tight_layout()
     output_path = "./tmp/demo_categorical_horizontal.png"
@@ -193,12 +194,23 @@ def demo_multiple_categories_per_axis():
     print("Demo 5: Multiple Categories per Axis")
     print("=" * 70)
 
-    df = pd.DataFrame({
-        "region": ["North", "South", "East", "West", "North", "South", "East", "West"],
-        "product": ["A", "B", "C", "D", "B", "C", "D", "A"],
-        "sales": [100, 150, 200, 250, 120, 180, 220, 110],
-        "profit": [20, 30, 40, 50, 25, 35, 45, 22]
-    })
+    df = pd.DataFrame(
+        {
+            "region": [
+                "North",
+                "South",
+                "East",
+                "West",
+                "North",
+                "South",
+                "East",
+                "West",
+            ],
+            "product": ["A", "B", "C", "D", "B", "C", "D", "A"],
+            "sales": [100, 150, 200, 250, 120, 180, 220, 110],
+            "profit": [20, 30, 40, 50, 25, 35, 45, 22],
+        }
+    )
 
     print("\nDataset:")
     print(df)
@@ -213,12 +225,12 @@ def demo_multiple_categories_per_axis():
         alpha=0.7,
         linewidth=2.0,
         palette="tab10",
-        ax=ax
+        ax=ax,
     )
     ax.set_title(
         "Sales Data: Multiple Categorical Axes\n(Region & Product)",
         fontsize=14,
-        fontweight="bold"
+        fontweight="bold",
     )
     plt.tight_layout()
     output_path = "./tmp/demo_categorical_multiple.png"

@@ -70,12 +70,12 @@ The parallel coordinates plot now supports:
 ```python
 # For n categories, map to evenly spaced positions
 cat_maps[col] = {
-    cat: i / (len(cats) - 1) if len(cats) > 1 else 0.5 
+    cat: i / (len(cats) - 1) if len(cats) > 1 else 0.5
     for i, cat in enumerate(cats)
 }
 ```
 
-**Label Positioning**: 
+**Label Positioning**:
 - Vertical orientation: Labels positioned to the left of each axis with `ha="left"`
 - Horizontal orientation: Labels positioned below each axis with `va="bottom"`
 - Bold font weight (`fontweight="bold"`) to distinguish from numeric labels

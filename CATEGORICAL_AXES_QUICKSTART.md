@@ -6,10 +6,10 @@ The `seaborn-paracoords` library now supports **categorical axes** in parallel c
 
 ## Key Features
 
-✨ **Automatic Detection** - Non-numeric columns are automatically treated as categorical  
-🎯 **Explicit Control** - Override detection with `categorical_axes` parameter  
-📊 **Custom Ordering** - Specify category order with `category_orders` parameter  
-🔄 **Full Compatibility** - Works with both orientations and all existing features  
+✨ **Automatic Detection** - Non-numeric columns are automatically treated as categorical
+🎯 **Explicit Control** - Override detection with `categorical_axes` parameter
+📊 **Custom Ordering** - Specify category order with `category_orders` parameter
+🔄 **Full Compatibility** - Works with both orientations and all existing features
 
 ## Quick Examples
 
@@ -137,6 +137,6 @@ Check the demos in `scripts/demo_categorical_axes.py` for complete working examp
 
 ---
 
-**Version**: Unreleased  
-**Added**: October 27, 2025  
+**Version**: Unreleased
+**Added**: October 27, 2025
 **Compatibility**: Python 3.8+, pandas 1.0+
