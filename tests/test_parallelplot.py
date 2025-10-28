@@ -50,14 +50,14 @@ def test_hue_parameter(sample_data):
 
 def test_orientation_vertical(sample_data):
     """Test vertical orientation."""
-    ax = snp.parallelplot(sample_data, vars=["a", "b"], orientation="vertical")
+    ax = snp.parallelplot(sample_data, vars=["a", "b"], orient="v")
     assert ax.get_xlim()[0] < ax.get_xlim()[1]
     plt.close("all")
 
 
 def test_orientation_horizontal(sample_data):
     """Test horizontal orientation."""
-    ax = snp.parallelplot(sample_data, vars=["a", "b"], orientation="horizontal")
+    ax = snp.parallelplot(sample_data, vars=["a", "b"], orient="h")
     assert ax.get_ylim()[0] < ax.get_ylim()[1]
     plt.close("all")
 
@@ -135,7 +135,7 @@ def test_sharex_parameter():
     df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30], "z": [100, 200, 300]})
 
     # Horizontal with sharex
-    ax = snp.parallelplot(df, orientation="horizontal", sharex=True)
+    ax = snp.parallelplot(df, orient="h", sharex=True)
     assert ax is not None
     # Should have x-axis ticks when sharing
     assert len(ax.get_xticks()) > 0
@@ -147,7 +147,7 @@ def test_sharey_parameter():
     df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30], "z": [100, 200, 300]})
 
     # Vertical with sharey
-    ax = snp.parallelplot(df, orientation="vertical", sharey=True)
+    ax = snp.parallelplot(df, orient="v", sharey=True)
     assert ax is not None
     # Should have y-axis ticks when sharing
     assert len(ax.get_yticks()) > 0
@@ -157,7 +157,7 @@ def test_sharey_parameter():
 def test_original_axis_values():
     df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30]})
     # Default behavior should show original values
-    ax = snp.parallelplot(df, orientation="vertical")
+    ax = snp.parallelplot(df, orient="v")
     assert ax is not None
     # Y-axis should be in [0, 1] range for plotting space
     ylim = ax.get_ylim()
@@ -208,7 +208,8 @@ def test_mixed_type_axes():
     assert ax is not None
     # Should show both category and numeric labels
     found_cat = any("G1" in t.get_text() for t in ax.texts)
-    found_num = any("5.00" in t.get_text() or "6.00" in t.get_text() for t in ax.texts)
+    # Float column val1 produces labels like "1.0", "2.0"
+    found_num = any("1.0" in t.get_text() or "2.0" in t.get_text() for t in ax.texts)
     assert found_cat and found_num
     plt.close("all")
 
@@ -235,7 +236,7 @@ def test_category_orders():
     df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30]})
 
     # Default behavior should show original values
-    ax = snp.parallelplot(df, orientation="vertical")
+    ax = snp.parallelplot(df, orient="v")
     assert ax is not None
     # Y-axis should be in [0, 1] range for plotting space
     ylim = ax.get_ylim()
@@ -248,25 +249,25 @@ def test_sharex_sharey_combination():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [10, 20, 30], "c": [100, 200, 300]})
 
     # Vertical with sharey should work
-    ax1 = snp.parallelplot(df, orientation="vertical", sharey=True)
+    ax1 = snp.parallelplot(df, orient="v", sharey=True)
     assert ax1 is not None
 
     # Horizontal with sharex should work
-    ax2 = snp.parallelplot(df, orientation="horizontal", sharex=True)
+    ax2 = snp.parallelplot(df, orient="h", sharex=True)
     assert ax2 is not None
 
     # Vertical with sharex should warn (wrong axis for orientation)
     with pytest.warns(
-        UserWarning, match="sharex=True has no effect with orientation='vertical'"
+        UserWarning, match="sharex=True has no effect with vertical orientation"
     ):
-        ax3 = snp.parallelplot(df, orientation="vertical", sharex=True)
+        ax3 = snp.parallelplot(df, orient="v", sharex=True)
     assert ax3 is not None
 
     # Horizontal with sharey should warn (wrong axis for orientation)
     with pytest.warns(
-        UserWarning, match="sharey=True has no effect with orientation='horizontal'"
+        UserWarning, match="sharey=True has no effect with horizontal orientation"
     ):
-        ax4 = snp.parallelplot(df, orientation="horizontal", sharey=True)
+        ax4 = snp.parallelplot(df, orient="h", sharey=True)
     assert ax4 is not None
 
     plt.close("all")

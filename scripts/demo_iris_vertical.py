@@ -21,7 +21,7 @@ def main():
         data=df,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         ax=ax,
     )

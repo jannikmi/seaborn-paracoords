@@ -194,7 +194,7 @@ def parallelplot(
     alpha=0.5,
     linewidth=1.0,
     palette=None,
-    orientation='vertical',
+    orient='v',
     ax=None,
     **kwargs
 ):

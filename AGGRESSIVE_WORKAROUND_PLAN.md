@@ -130,7 +130,7 @@ parallelplot(data, hue='species', sharey=False)
 
 ### Q5: **Should we support both `orientation` and `orient` parameters?**
 
-**Current library**: Uses `orientation='vertical'` or `'horizontal'`
+**Current library**: Uses `orient='v'` or `'horizontal'`
 
 **Seaborn convention**: Uses `orient` parameter
 - Takes values: `'v'`, `'h'`, `'x'`, `'y'`
@@ -417,7 +417,7 @@ Output: matplotlib Axes (or so.Plot for faceting?)
 ### Key Functions
 
 ```python
-def parallelplot(data, vars=None, hue=None, orientation='vertical',
+def parallelplot(data, vars=None, hue=None, orient='v',
                  sharex=False, sharey=False,
                  col=None, row=None,  # Faceting
                  show_mean=False,     # Stats

@@ -135,7 +135,7 @@ ax = snp.parallelplot(
     iris,
     vars=["species", "sepal_length", "sepal_width", "petal_length"],
     hue="species",
-    orientation="horizontal"
+    orient="h"
 )
 ```
 

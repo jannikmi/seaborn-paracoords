@@ -21,9 +21,7 @@ def main():
 
     # Plot 1: Original axis values (default)
     print("\n1. Creating plot with original axis values (default)...")
-    snp.parallelplot(
-        data=df, hue="species", orientation="vertical", alpha=0.6, ax=axes[0]
-    )
+    snp.parallelplot(data=df, hue="species", orient="v", alpha=0.6, ax=axes[0])
     axes[0].set_title(
         "Default: Original Axis Values\n(Each axis shows its own range)", fontsize=12
     )
@@ -33,7 +31,7 @@ def main():
     snp.parallelplot(
         data=df,
         hue="species",
-        orientation="vertical",
+        orient="v",
         sharey=True,
         alpha=0.6,
         ax=axes[1],
@@ -51,7 +49,7 @@ def main():
         data=df_mixed,
         vars=["sepal_length", "sepal_width", "petal_length", "large_scale"],
         hue="species",
-        orientation="vertical",
+        orient="v",
         alpha=0.6,
         ax=axes[2],
     )

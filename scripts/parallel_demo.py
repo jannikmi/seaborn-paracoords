@@ -22,7 +22,7 @@ def demo_iris_vertical():
         data=df,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         ax=ax,
     )
@@ -42,7 +42,7 @@ def demo_iris_horizontal():
         data=df,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="horizontal",
+        orient="h",
         alpha=0.7,
         ax=ax,
     )
@@ -156,7 +156,7 @@ def create_combined_iris_demo():
         data=df,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         ax=ax1,
     )
@@ -167,7 +167,7 @@ def create_combined_iris_demo():
         data=df,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="horizontal",
+        orient="h",
         alpha=0.7,
         ax=ax2,
     )

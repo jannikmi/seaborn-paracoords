@@ -42,7 +42,7 @@ def demo_auto_categorical_detection():
 
     fig, ax = plt.subplots(figsize=(12, 6))
     snp.parallelplot(
-        data=df, hue="species", orientation="vertical", alpha=0.8, linewidth=2.0, ax=ax
+        data=df, hue="species", orient="v", alpha=0.8, linewidth=2.0, ax=ax
     )
     ax.set_title(
         "Mixed-Type Data: Categorical & Numeric Axes\n(Automatic Detection)",
@@ -81,7 +81,7 @@ def demo_explicit_categorical():
         vars=["category", "value1", "value2", "group"],
         categorical_axes=["category", "group"],
         hue="group",
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         linewidth=2.5,
         ax=ax,
@@ -123,7 +123,7 @@ def demo_custom_category_order():
     snp.parallelplot(
         data=df,
         categorical_axes=["size", "rating"],
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         linewidth=2.0,
         ax=ax1,
@@ -138,7 +138,7 @@ def demo_custom_category_order():
             "size": ["small", "medium", "large"],
             "rating": ["average", "good", "excellent"],
         },
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         linewidth=2.0,
         ax=ax2,
@@ -170,7 +170,7 @@ def demo_horizontal_categorical():
         data=iris_sample,
         vars=["species", "sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
-        orientation="horizontal",
+        orient="h",
         alpha=0.6,
         linewidth=1.5,
         palette="Set2",
@@ -221,7 +221,7 @@ def demo_multiple_categories_per_axis():
         vars=["region", "product", "sales", "profit"],
         categorical_axes=["region", "product"],
         hue="region",
-        orientation="vertical",
+        orient="v",
         alpha=0.7,
         linewidth=2.0,
         palette="tab10",

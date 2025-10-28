@@ -89,7 +89,7 @@ parallelplot(
 |---------|----------------|------------------|
 | Basic parallel coordinates | ✓ Yes | ✓ Yes |
 | Color by category (hue) | ✓ Yes | ✓ Yes |
-| Horizontal orientation | ⚠️ Manual reshape | ✓ `orientation='horizontal'` |
+| Horizontal orientation | ⚠️ Manual reshape | ✓ `orient='h'` |
 | **Independent axis scaling** | ❌ **No - forced shared y-axis** | ✓ **Default behavior** |
 | Shared axis scaling | ✓ Default behavior | ✓ `sharex`/`sharey` params |
 | **Per-variable axis labels** | ❌ **Single y-axis only** | ✓ **Each axis shows range** |
