@@ -721,9 +721,8 @@ def parallelplot(
     else:
         ax = plt.gca()
 
-    # Add legend if hue is specified
-    if hue is not None and ax.get_legend() is None:
-        ax.legend(title=hue, loc="best")
+    # Seaborn Objects automatically adds legend when hue is specified
+    # No need to manually add legend
 
     # Post-process for independent axes
     use_independent = (orient in ["v", "y"] and not sharey) or (

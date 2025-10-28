@@ -44,7 +44,8 @@ def test_hue_parameter(sample_data):
     """Test hue parameter functionality."""
     ax = snp.parallelplot(sample_data, vars=["a", "b", "c"], hue="category")
     assert ax is not None
-    assert ax.get_legend() is not None
+    # Seaborn Objects creates a figure legend, not an axes legend
+    assert len(ax.get_figure().legends) > 0 or ax.get_legend() is not None
     plt.close("all")
 
 
