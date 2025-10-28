@@ -23,6 +23,7 @@ uv run python scripts/run_all_demos.py orientations
 | `scaling` | Independent vs shared axis scaling | `demo_scaling.png` |
 | `categorical_axes` | Categorical variable support | 5 separate PNGs |
 | `seaborn_contexts` | Seaborn plotting contexts (paper/notebook/talk/poster) | `demo_seaborn_contexts.png` |
+| `seaborn_styles` | Seaborn styles comparison (white/dark/grids/ticks) | 10 files (5 PNG + 5 SVG) |
 
 ## Output Location
 

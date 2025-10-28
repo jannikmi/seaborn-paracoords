@@ -1,4 +1,8 @@
 
+BUGFIX
+
+the "grid" styles are not properly applied. the grid lines are missing
+
 
 MATURITY
 
@@ -6,12 +10,6 @@ MATURITY
 clean up all outdated prototype and experimentation code and results.
 only keep usage examples useful for the users or developers.
 
-
-
-add a demo script for comparing different seaborn styles side by side:
-styles = ["white", "dark", "whitegrid", "darkgrid", "ticks"]
-for style in styles:
-    with sns.axes_style(style):
 
 
 

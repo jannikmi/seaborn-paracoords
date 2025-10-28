@@ -8,6 +8,7 @@ Available demos:
   - scaling: Independent vs shared axis scaling
   - categorical_axes: Categorical variable support
   - seaborn_contexts: Different seaborn plotting contexts (paper, notebook, talk, poster)
+  - seaborn_styles: Different seaborn styles (white, dark, whitegrid, darkgrid, ticks)
 """
 
 import sys
@@ -21,6 +22,7 @@ DEMOS = {
     "scaling": "demo_scaling.py",
     "categorical_axes": "demo_categorical_axes.py",
     "seaborn_contexts": "demo_seaborn_contexts.py",
+    "seaborn_styles": "demo_seaborn_styles.py",
 }
 
 
