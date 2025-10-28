@@ -363,15 +363,11 @@ def _create_seaborn_plot(
 
     # Create plot
     if orient in ["v", "y"]:
-        if hue is not None:
-            plot = so.Plot(melted, x="variable", y="value", color=hue)
-        else:
-            plot = so.Plot(melted, x="variable", y="value")
+        x, y = "variable", "value"
     else:  # horizontal
-        if hue is not None:
-            plot = so.Plot(melted, x="value", y="variable", color=hue)
-        else:
-            plot = so.Plot(melted, x="value", y="variable")
+        x, y = "value", "variable"
+
+    plot = so.Plot(melted, x=x, y=y, color=hue)
 
     # Add lines with grouping by index
     plot = plot.add(
