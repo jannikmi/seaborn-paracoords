@@ -385,6 +385,44 @@ def _create_seaborn_plot(
     return plot
 
 
+def _clear_axis_labels(ax: plt.Axes) -> None:
+    """Clear both x and y axis labels."""
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+
+
+def _fix_inverted_yaxis_if_needed(ax: plt.Axes) -> None:
+    """Fix inverted y-axis in horizontal orientation plots."""
+    ylim = ax.get_ylim()
+    if ylim[0] > ylim[1]:
+        ax.set_ylim(ylim[1], ylim[0])
+
+
+def _map_normalized_ticks_to_range(
+    ticks: np.ndarray,
+    global_min: float,
+    global_max: float,
+) -> List[str]:
+    """
+    Map normalized [0, 1] tick positions to original data range labels.
+
+    Parameters
+    ----------
+    ticks : ndarray
+        Tick positions in normalized [0, 1] space
+    global_min : float
+        Minimum value of original data range
+    global_max : float
+        Maximum value of original data range
+
+    Returns
+    -------
+    labels : list of str
+        Tick labels showing original data values
+    """
+    return [f"{global_min + (global_max - global_min) * tick:.2g}" for tick in ticks]
+
+
 def _add_independent_tick_labels(
     ax: plt.Axes,
     vars: List[str],
@@ -411,11 +449,9 @@ def _add_independent_tick_labels(
     orient : {'v', 'h'}
         Orientation
     """
-    # Clear default axes and labels
+    # Clear default tick positions
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_xlabel("")
-    ax.set_ylabel("")
 
     # Hide tick marks but keep labels for variable names
     if orient == "v":
@@ -690,14 +726,19 @@ def parallelplot(
     # Seaborn Objects automatically adds legend when hue is specified
     # No need to manually add legend
 
-    # Post-process for independent axes
+    # Post-process for axes
     use_independent = (orient in ["v", "y"] and not sharey) or (
         orient in ["h", "x"] and not sharex
     )
 
+    # Normalize orient to 'v' or 'h'
+    normalized_orient: Literal["v", "h"] = "v" if orient in ["v", "y"] else "h"
+
+    # Clear axis labels (done for both independent and shared axes)
+    _clear_axis_labels(result_ax)
+
     if use_independent:
-        # Normalize orient to 'v' or 'h'
-        normalized_orient: Literal["v", "h"] = "v" if orient in ["v", "y"] else "h"
+        # Independent axes: custom tick labels for each variable
         _add_independent_tick_labels(
             result_ax,
             vars,
@@ -709,8 +750,31 @@ def parallelplot(
 
         # Fix inverted y-axis in horizontal orientation
         if normalized_orient == "h":
-            ylim = result_ax.get_ylim()
-            if ylim[0] > ylim[1]:
-                result_ax.set_ylim(ylim[1], ylim[0])
+            _fix_inverted_yaxis_if_needed(result_ax)
+    else:
+        # Shared axes: fix tick labels to show original data range instead of [0, 1]
+        # Get the global range from normalized data (all numeric vars share same range)
+        numeric_vars = [v for v in vars if v not in categorical_info]
+        if numeric_vars:
+            # All numeric vars have the same global range when shared scaling is used
+            global_min, global_max = original_ranges[numeric_vars[0]]
+
+            if normalized_orient == "v":
+                # Vertical with sharey: fix y-axis ticks
+                yticks = result_ax.get_yticks()
+                new_labels = _map_normalized_ticks_to_range(
+                    yticks, global_min, global_max
+                )
+                result_ax.set_yticks(yticks, labels=new_labels)
+            else:
+                # Horizontal with sharex: fix x-axis ticks
+                xticks = result_ax.get_xticks()
+                new_labels = _map_normalized_ticks_to_range(
+                    xticks, global_min, global_max
+                )
+                result_ax.set_xticks(xticks, labels=new_labels)
+
+                # Fix inverted y-axis in horizontal orientation
+                _fix_inverted_yaxis_if_needed(result_ax)
 
     return result_ax
