@@ -113,13 +113,19 @@ def _draw_axis_with_ticks(
     # Determine if categorical for text rotation
     is_categorical = var in categorical_info
 
+    # Get line width and font size from current matplotlib rcParams
+    # This ensures we respect seaborn plotting contexts
+    axis_linewidth = plt.rcParams["axes.linewidth"]
+    tick_linewidth = plt.rcParams["xtick.major.width"]
+    tick_labelsize = plt.rcParams["xtick.labelsize"]
+
     if orient == "v":
         # Vertical: axis line from (position, 0) to (position, 1)
         ax.plot(
             [position, position],
             [0, 1],
             color="black",
-            linewidth=1.5,
+            linewidth=axis_linewidth,
             clip_on=False,
             zorder=100,
         )
@@ -131,7 +137,7 @@ def _draw_axis_with_ticks(
                 [position - 0.02, position],
                 [pos, pos],
                 color="black",
-                linewidth=1,
+                linewidth=tick_linewidth,
                 clip_on=False,
                 zorder=100,
             )
@@ -142,7 +148,7 @@ def _draw_axis_with_ticks(
                 label,
                 ha="right",
                 va="center",
-                fontsize=9,
+                fontsize=tick_labelsize,
                 clip_on=False,
             )
     else:  # horizontal
@@ -151,7 +157,7 @@ def _draw_axis_with_ticks(
             [0, 1],
             [position, position],
             color="black",
-            linewidth=1.5,
+            linewidth=axis_linewidth,
             clip_on=False,
             zorder=100,
         )
@@ -163,7 +169,7 @@ def _draw_axis_with_ticks(
                 [pos, pos],
                 [position - 0.02, position],
                 color="black",
-                linewidth=1,
+                linewidth=tick_linewidth,
                 clip_on=False,
                 zorder=100,
             )
@@ -174,7 +180,7 @@ def _draw_axis_with_ticks(
                 label,
                 ha="center",
                 va="top",
-                fontsize=9,
+                fontsize=tick_labelsize,
                 clip_on=False,
                 rotation=45 if is_categorical else 0,
             )
@@ -489,11 +495,13 @@ def _add_independent_tick_labels(
     if orient == "v":
         # Vertical: clear y-axis ticks (values), keep x-axis ticks (variable names)
         ax.set_yticks([])
-        ax.tick_params(axis="x", length=0)  # Hide tick marks, keep labels
+        # Hide tick marks, keep labels, and ensure labels use the correct font size
+        ax.tick_params(axis="x", length=0, labelsize=plt.rcParams["xtick.labelsize"])
     else:  # horizontal
         # Horizontal: clear x-axis ticks (values), keep y-axis ticks (variable names)
         ax.set_xticks([])
-        ax.tick_params(axis="y", length=0)  # Hide tick marks, keep labels
+        # Hide tick marks, keep labels, and ensure labels use the correct font size
+        ax.tick_params(axis="y", length=0, labelsize=plt.rcParams["ytick.labelsize"])
 
     _hide_all_spines(ax)
 
@@ -756,7 +764,8 @@ def parallelplot(
         **kwargs,
     )
 
-    # Render plot
+    # Render plot - this must happen within the same plotting context
+    # to inherit font sizes, line widths, etc. from seaborn contexts
     plot_result = plot.plot()
 
     # Extract axes - use the provided ax if available, otherwise get from result
@@ -770,8 +779,84 @@ def parallelplot(
     else:
         result_ax = plt.gca()
 
-    # Seaborn Objects automatically adds legend when hue is specified
-    # No need to manually add legend
+    # Add legend manually when hue is specified
+    # Check if seaborn objects already created a legend (behavior may vary by version)
+    if hue is not None:
+        existing_legend = result_ax.get_legend()
+
+        if existing_legend is None:
+            # No legend exists, create one from LineCollection colors
+            # Get unique hue values in order they appear
+            hue_values = original_data[hue].unique()
+
+            # Seaborn Objects uses LineCollection for the lines
+            # We need to extract colors from the LineCollection
+            from matplotlib.collections import LineCollection
+            from matplotlib.lines import Line2D
+
+            line_collections = [
+                c for c in result_ax.collections if isinstance(c, LineCollection)
+            ]
+
+            if line_collections:
+                lc = line_collections[0]
+                colors = lc.get_colors()
+
+                # Get unique colors while preserving order
+                seen_colors = {}
+                unique_colors = []
+                for color in colors:
+                    color_tuple = tuple(color)  # type: ignore[arg-type]
+                    if color_tuple not in seen_colors:
+                        seen_colors[color_tuple] = True
+                        unique_colors.append(color)
+
+                # Create legend handles (dummy Line2D objects with the right colors)
+                # Extract alpha from first color if it's RGBA (4 elements)
+                first_color = colors[0] if len(colors) > 0 else None
+                default_alpha = 1.0
+                if first_color is not None and hasattr(first_color, "__len__"):
+                    try:
+                        if len(first_color) > 3:  # type: ignore[arg-type]
+                            default_alpha = float(first_color[3])  # type: ignore[index]
+                    except (TypeError, IndexError):
+                        pass
+
+                handles = [
+                    Line2D(
+                        [0],
+                        [0],
+                        color=color,  # type: ignore[arg-type]
+                        linewidth=2,
+                        alpha=default_alpha,
+                    )
+                    for color in unique_colors[: len(hue_values)]
+                ]
+                labels = [str(val) for val in hue_values]
+
+                # Remove any existing legends from the figure to prevent duplicates in output
+                # matplotlib accumulates legends internally even if ax.get_legend() returns None
+                fig = result_ax.figure
+                if fig and hasattr(fig, "legends"):
+                    # Clear the figure's legend list to prevent accumulation
+                    fig.legends.clear()
+
+                # Add legend with proper font size from rcParams
+                result_ax.legend(
+                    handles,
+                    labels,
+                    title=hue,
+                    fontsize=plt.rcParams["legend.fontsize"],
+                    title_fontsize=plt.rcParams["legend.title_fontsize"],
+                )
+        else:
+            # Legend already exists (created by seaborn objects in newer versions)
+            # Update its font sizes to respect the current plotting context
+            for text in existing_legend.get_texts():
+                text.set_fontsize(plt.rcParams["legend.fontsize"])
+            existing_legend.get_title().set_fontsize(
+                plt.rcParams["legend.title_fontsize"]
+            )
 
     # Post-process for axes
     use_independent = (orient in ["v", "y"] and not sharey) or (
@@ -813,6 +898,13 @@ def parallelplot(
                     yticks, global_min, global_max
                 )
                 result_ax.set_yticks(yticks, labels=new_labels)
+                # Ensure variable names (x-axis) and value labels (y-axis) use correct font size
+                result_ax.tick_params(
+                    axis="x", labelsize=plt.rcParams["xtick.labelsize"]
+                )
+                result_ax.tick_params(
+                    axis="y", labelsize=plt.rcParams["ytick.labelsize"]
+                )
             else:
                 # Horizontal with sharex: fix x-axis ticks
                 xticks = result_ax.get_xticks()
@@ -820,6 +912,13 @@ def parallelplot(
                     xticks, global_min, global_max
                 )
                 result_ax.set_xticks(xticks, labels=new_labels)
+                # Ensure variable names (y-axis) and value labels (x-axis) use correct font size
+                result_ax.tick_params(
+                    axis="x", labelsize=plt.rcParams["xtick.labelsize"]
+                )
+                result_ax.tick_params(
+                    axis="y", labelsize=plt.rcParams["ytick.labelsize"]
+                )
 
                 # Fix inverted y-axis in horizontal orientation
                 _fix_inverted_yaxis_if_needed(result_ax)

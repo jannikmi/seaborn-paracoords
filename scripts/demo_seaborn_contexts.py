@@ -17,25 +17,35 @@ def main():
     df = sns.load_dataset("iris")
 
     # Create figure with 4 subplots (2x2 grid)
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    axes_flat = axes.flatten()
+    # We create the figure structure first, then populate each subplot within its context
+    fig = plt.figure(figsize=(16, 12))
 
     contexts = ["paper", "notebook", "talk", "poster"]
 
     for idx, context in enumerate(contexts):
         print(f"  • Creating plot with '{context}' context...")
+
+        # Apply context BEFORE creating the subplot and plot
         with sns.plotting_context(context):
+            # Create subplot within the context
+            ax = fig.add_subplot(2, 2, idx + 1)
+
+            # Create the parallel coordinates plot
             snp.parallelplot(
                 data=df,
                 vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
                 hue="species",
                 orient="v",
                 alpha=0.7,
-                ax=axes_flat[idx],
+                ax=ax,
             )
-            axes_flat[idx].set_title(
+
+            # Set title - use current context font size for consistency
+            # But override to make sure titles are visible across all contexts
+            title_fontsize = plt.rcParams["axes.titlesize"]
+            ax.set_title(
                 f"Context: '{context}'",
-                fontsize=12,
+                fontsize=title_fontsize,
                 fontweight="bold",
             )
 
