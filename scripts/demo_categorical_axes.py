@@ -23,34 +23,47 @@ os.makedirs("./tmp", exist_ok=True)
 def demo_auto_categorical_detection():
     """Demo 1: Automatic detection of categorical variables."""
     print("\n" + "=" * 70)
-    print("Demo 1: Automatic Categorical Detection")
+    print("Demo 1: Automatic Categorical Detection with Mixed Data Types")
     print("=" * 70)
 
-    # Create mixed-type dataset
+    # Create mixed-type dataset with both numeric and categorical columns
     df = pd.DataFrame(
         {
-            "species": ["setosa", "versicolor", "virginica", "setosa", "versicolor"],
-            "sepal_length": [5.1, 7.0, 6.3, 4.9, 6.5],
-            "sepal_width": [3.5, 3.2, 3.3, 3.0, 2.8],
-            "petal_width": [0.2, 1.3, 2.5, 0.2, 1.5],
+            "Age": [25, 30, 35, 28, 32, 29, 31, 27, 33, 26],
+            "Category": ["A", "B", "A", "C", "B", "C", "A", "B", "C", "A"],
+            "Score": [85, 92, 78, 88, 95, 82, 90, 87, 91, 84],
+            "Grade": [
+                "Good",
+                "Excellent",
+                "Fair",
+                "Good",
+                "Excellent",
+                "Good",
+                "Excellent",
+                "Good",
+                "Excellent",
+                "Good",
+            ],
+            "Value": [100, 200, 150, 180, 220, 160, 210, 170, 205, 155],
         }
     )
 
     print("\nDataset:")
-    print(df)
-    print("\n'species' column is automatically detected as categorical")
+    print(df.head())
+    print("\nCategorical columns automatically detected: 'Category', 'Grade'")
+    print("Numeric columns: 'Age', 'Score', 'Value'")
 
     fig, ax = plt.subplots(figsize=(12, 6))
     snp.parallelplot(
-        data=df, hue="species", orient="v", alpha=0.8, linewidth=2.0, ax=ax
+        data=df, hue="Category", orient="v", alpha=0.7, linewidth=1.5, ax=ax
     )
     ax.set_title(
-        "Mixed-Type Data: Categorical & Numeric Axes\n(Automatic Detection)",
+        "Mixed Data Types: Automatic Detection\n(Categorical + Numeric Columns)",
         fontsize=14,
         fontweight="bold",
     )
     plt.tight_layout()
-    output_path = "./tmp/demo_categorical_auto_detection.png"
+    output_path = "./tmp/seaborn-paracoords_demo_categorical_auto_detection.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     print(f"✅ Saved: {output_path}")
     plt.close()
@@ -92,7 +105,7 @@ def demo_explicit_categorical():
         fontweight="bold",
     )
     plt.tight_layout()
-    output_path = "./tmp/demo_categorical_explicit.png"
+    output_path = "./tmp/seaborn-paracoords_demo_categorical_explicit.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     print(f"✅ Saved: {output_path}")
     plt.close()
@@ -146,7 +159,7 @@ def demo_custom_category_order():
     ax2.set_title("Custom Ordering\n(Logical Order)", fontsize=12, fontweight="bold")
 
     plt.tight_layout()
-    output_path = "./tmp/demo_categorical_custom_order.png"
+    output_path = "./tmp/seaborn-paracoords_demo_categorical_custom_order.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     print(f"✅ Saved: {output_path}")
     plt.close()
@@ -182,7 +195,7 @@ def demo_horizontal_categorical():
         fontweight="bold",
     )
     plt.tight_layout()
-    output_path = "./tmp/demo_categorical_horizontal.png"
+    output_path = "./tmp/seaborn-paracoords_demo_categorical_horizontal.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     print(f"✅ Saved: {output_path}")
     plt.close()
@@ -233,7 +246,7 @@ def demo_multiple_categories_per_axis():
         fontweight="bold",
     )
     plt.tight_layout()
-    output_path = "./tmp/demo_categorical_multiple.png"
+    output_path = "./tmp/seaborn-paracoords_demo_categorical_multiple.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     print(f"✅ Saved: {output_path}")
     plt.close()
@@ -254,9 +267,9 @@ if __name__ == "__main__":
     print("✅ All demos completed successfully!")
     print("=" * 70)
     print("\nOutput files saved to: ./tmp/")
-    print("  - demo_categorical_auto_detection.png")
-    print("  - demo_categorical_explicit.png")
-    print("  - demo_categorical_custom_order.png")
-    print("  - demo_categorical_horizontal.png")
-    print("  - demo_categorical_multiple.png")
+    print("  - seaborn-paracoords_demo_categorical_auto_detection.png")
+    print("  - seaborn-paracoords_demo_categorical_explicit.png")
+    print("  - seaborn-paracoords_demo_categorical_custom_order.png")
+    print("  - seaborn-paracoords_demo_categorical_horizontal.png")
+    print("  - seaborn-paracoords_demo_categorical_multiple.png")
     print()

@@ -179,7 +179,7 @@ def create_combined_iris_demo():
     os.makedirs("./tmp", exist_ok=True)
 
     # Save to relative tmp folder
-    output_path = "./tmp/iris_parallel_demo.png"
+    output_path = "./tmp/seaborn-paracoords_demo_parallel.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
 

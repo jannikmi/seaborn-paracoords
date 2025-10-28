@@ -30,7 +30,7 @@ def main():
 
     # Save to tmp folder
     os.makedirs("./tmp", exist_ok=True)
-    output_path = "./tmp/iris_horizontal_demo.png"
+    output_path = "./tmp/seaborn-paracoords_demo_iris_horizontal.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
 

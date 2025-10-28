@@ -76,7 +76,7 @@ def main():
 
     # Save
     os.makedirs("./tmp", exist_ok=True)
-    output_path = "./tmp/scaling_verification.png"
+    output_path = "./tmp/seaborn-paracoords_demo_scaling_verification.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
 
