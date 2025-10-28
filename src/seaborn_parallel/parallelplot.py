@@ -30,10 +30,11 @@ def parallelplot(
     **kwargs: Any,
 ) -> plt.Axes:
     """
-    Draw a parallel coordinates plot.
+    Draw a parallel coordinates plot with full Seaborn integration.
 
-    This function supports both numeric and categorical variables, with automatic
-    detection of categorical axes for non-numeric columns.
+    This function creates parallel coordinates plots that fully integrate with
+    Seaborn's theming system, automatically responding to context (paper, notebook,
+    talk, poster) and style (white, whitegrid, darkgrid, etc.) settings.
 
     Parameters
     ----------
@@ -50,7 +51,7 @@ def parallelplot(
     linewidth : float, default 1.0
         Line width
     palette : str, optional
-        Color palette name
+        Color palette name (supports all Seaborn palettes)
     ax : Axes, optional
         Matplotlib axes to plot on
     sharex : bool, default False
@@ -64,7 +65,8 @@ def parallelplot(
         If None, non-numeric columns are automatically detected as categorical.
     category_orders : dict, optional
         Dictionary mapping categorical variable names to lists specifying the order
-        of categories. If not provided, categories are ordered alphabetically.
+        of categories. If not provided, categories are ordered using Seaborn's
+        categorical_order function.
         Example: {"size": ["small", "medium", "large"], "rating": ["low", "high"]}
     **kwargs
         Additional arguments passed to LineCollection
@@ -74,29 +76,71 @@ def parallelplot(
     ax : Axes
         The matplotlib axes containing the plot
 
+    Notes
+    -----
+    This function integrates with Seaborn's theming system:
+
+    **Context**: Controls scaling of fonts, lines, and other elements
+        - paper: Smallest (0.8×)
+        - notebook: Standard (1.0×)
+        - talk: Larger (1.5×)
+        - poster: Largest (2.0×)
+
+    **Style**: Controls visual appearance
+        - white/dark: No grid
+        - whitegrid/darkgrid: With grid
+        - ticks: No grid, with tick marks
+
+    **Palette**: All Seaborn color palettes are supported
+
     Examples
     --------
-    Basic usage with automatic categorical detection:
+    Basic usage with Seaborn theming:
 
-    >>> import pandas as pd
+    >>> import seaborn as sns
     >>> import seaborn_parallel as snp
-    >>> df = pd.DataFrame({
-    ...     "species": ["setosa", "versicolor", "virginica"],
-    ...     "sepal_length": [5.1, 7.0, 6.3],
-    ...     "petal_width": [0.2, 1.3, 2.5]
-    ... })
-    >>> ax = snp.parallelplot(df)  # 'species' automatically detected as categorical
+    >>>
+    >>> # Set overall theme
+    >>> sns.set_theme(context="talk", style="whitegrid", palette="muted")
+    >>>
+    >>> # Create plot - automatically uses theme settings
+    >>> df = sns.load_dataset("iris")
+    >>> ax = snp.parallelplot(df, hue="species")
 
-    Explicit categorical specification with custom ordering:
+    Using different contexts for different outputs:
+
+    >>> # For presentations
+    >>> with sns.plotting_context("poster"):
+    ...     ax = snp.parallelplot(df, hue="species")
+    ...     # Text and lines are automatically larger
+
+    >>> # For papers
+    >>> with sns.plotting_context("paper"):
+    ...     ax = snp.parallelplot(df, hue="species")
+    ...     # Text and lines are automatically smaller
+
+    Grid control via style:
+
+    >>> # With grid (whitegrid or darkgrid)
+    >>> with sns.axes_style("whitegrid"):
+    ...     ax = snp.parallelplot(df, hue="species")
+
+    >>> # Without grid (white, dark, or ticks)
+    >>> with sns.axes_style("white"):
+    ...     ax = snp.parallelplot(df, hue="species")
+
+    Categorical variables with custom ordering:
 
     >>> df = pd.DataFrame({
-    ...     "size": ["small", "large", "medium"],
-    ...     "score": [85, 95, 90]
+    ...     "size": ["small", "large", "medium", "small"],
+    ...     "score": [85, 95, 90, 87],
+    ...     "grade": ["B", "A", "A", "B"]
     ... })
     >>> ax = snp.parallelplot(
     ...     df,
     ...     categorical_axes=["size"],
-    ...     category_orders={"size": ["small", "medium", "large"]}
+    ...     category_orders={"size": ["small", "medium", "large"]},
+    ...     hue="grade"
     ... )
     """
     # Input validation
@@ -370,26 +414,48 @@ def _format_axis_ticks(
 
 
 def _handle_colors(data, hue, palette, n_rows):
-    """Handle color mapping with proper fallbacks."""
+    """
+    Handle color mapping using Seaborn utilities.
+
+    Delegates to Seaborn's categorical_order() and palette selection logic
+    to match the behavior of HueMapping.categorical_mapping().
+    """
+    from seaborn._base import categorical_order
+    from seaborn.utils import get_color_cycle
+
     if hue is None or data is None:
-        default_color = sns.color_palette("deep", 1)[0]
+        # Use Seaborn's active color cycle instead of hardcoded "deep"
+        default_color = get_color_cycle()[0]
         return [default_color] * n_rows, None, None
 
     if hue not in data.columns:
         raise KeyError(f"hue column '{hue}' not found in data")
 
     hue_data = data[hue]
-    unique_vals = sorted(hue_data.dropna().unique())
 
-    if len(unique_vals) == 0:
-        default_color = sns.color_palette("deep", 1)[0]
+    # Use Seaborn's categorical_order (same as HueMapping uses)
+    levels = categorical_order(hue_data, order=None)
+
+    if len(levels) == 0:
+        default_color = get_color_cycle()[0]
         return [default_color] * n_rows, None, None
 
-    palette_colors = sns.color_palette(palette, len(unique_vals))
-    color_map = dict(zip(unique_vals, palette_colors))
+    # Use Seaborn's palette selection logic (matches HueMapping.categorical_mapping)
+    n_colors = len(levels)
+    if palette is None:
+        # Same logic as HueMapping: use color cycle if we have enough colors,
+        # otherwise fall back to husl palette
+        if n_colors <= len(get_color_cycle()):
+            palette_colors = sns.color_palette(None, n_colors)
+        else:
+            palette_colors = sns.color_palette("husl", n_colors)
+    else:
+        palette_colors = sns.color_palette(palette, n_colors)
+
+    color_map = dict(zip(levels, palette_colors))
     colors = [color_map.get(val, "gray") for val in hue_data]
 
-    return colors, color_map, unique_vals
+    return colors, color_map, levels
 
 
 def _create_line_coordinates(df, orientation):
@@ -428,21 +494,33 @@ def _configure_axes(
     if cat_orders is None:
         cat_orders = {}
 
+    # Get context-aware font size for tick labels
+    import matplotlib as mpl
+
+    # Use xtick.labelsize as base and scale down slightly for inline labels
+    # Convert to float in case it's a string like "medium"
+    base_size = mpl.rcParams["xtick.labelsize"]
+    if isinstance(base_size, str):
+        # If it's a string (like "medium"), get the actual size
+        base_size = mpl.font_manager.FontProperties(size=base_size).get_size_in_points()
+    tick_label_size = base_size * 0.8
+
     if orientation == "vertical":
-        ax.set_xlim(-0.1, n_vars - 0.9)
-        ax.set_ylim(-0.05, 1.05)
-        ax.set_xticks(range(n_vars))
+        # Use ax.set() for cleaner property setting (Seaborn pattern)
+        ax.set(
+            xlim=(-0.1, n_vars - 0.9),
+            ylim=(-0.05, 1.05),
+            xticks=range(n_vars),
+        )
+        # Rotation requires separate call
         ax.set_xticklabels(vars, rotation=45, ha="right")
 
         # Set y-axis ticks for shared numeric range
         if shared_range is not None:
             positions, labels = _format_axis_ticks(shared_range)
-            ax.set_yticks(positions)
-            ax.set_yticklabels(labels)
-            ax.set_ylabel("Value")
+            ax.set(yticks=positions, yticklabels=labels, ylabel="Value")
         else:
-            ax.set_yticks([])
-            ax.set_ylabel("")
+            ax.set(yticks=[], ylabel="")
 
         # Add per-axis tick labels
         for i, var in enumerate(vars):
@@ -460,7 +538,7 @@ def _configure_axes(
                         f"  {label}",
                         ha="left",
                         va="center",
-                        fontsize=8,
+                        fontsize=tick_label_size,
                         alpha=0.9,
                         fontweight="bold",
                     )
@@ -484,24 +562,24 @@ def _configure_axes(
                             f"  {label}",
                             ha="left",
                             va="center",
-                            fontsize=8,
+                            fontsize=tick_label_size,
                             alpha=0.7,
                         )
 
     else:  # horizontal
-        ax.set_ylim(-0.1, n_vars - 0.9)
-        ax.set_xlim(-0.05, 1.05)
-        ax.set_yticks(range(n_vars))
-        ax.set_yticklabels(vars)
+        # Use ax.set() for cleaner property setting (Seaborn pattern)
+        ax.set(
+            ylim=(-0.1, n_vars - 0.9),
+            xlim=(-0.05, 1.05),
+            yticks=range(n_vars),
+            yticklabels=vars,
+        )
 
         if shared_range is not None:
             positions, labels = _format_axis_ticks(shared_range)
-            ax.set_xticks(positions)
-            ax.set_xticklabels(labels)
-            ax.set_xlabel("Value")
+            ax.set(xticks=positions, xticklabels=labels, xlabel="Value")
         else:
-            ax.set_xticks([])
-            ax.set_xlabel("")
+            ax.set(xticks=[], xlabel="")
 
         # Add per-axis tick labels
         for i, var in enumerate(vars):
@@ -519,7 +597,7 @@ def _configure_axes(
                         label,
                         ha="center",
                         va="bottom",
-                        fontsize=8,
+                        fontsize=tick_label_size,
                         alpha=0.9,
                         fontweight="bold",
                     )
@@ -541,7 +619,7 @@ def _configure_axes(
                             label,
                             ha="center",
                             va="bottom",
-                            fontsize=8,
+                            fontsize=tick_label_size,
                             alpha=0.7,
                             rotation=0,
                         )
@@ -568,7 +646,7 @@ def _configure_axes(
                         f"  {label}",
                         ha="left",
                         va="center",
-                        fontsize=8,
+                        fontsize=tick_label_size,
                         alpha=0.7,
                     )
             else:  # horizontal
@@ -580,21 +658,25 @@ def _configure_axes(
                         label,
                         ha="center",
                         va="bottom",
-                        fontsize=8,
+                        fontsize=tick_label_size,
                         alpha=0.7,
                         rotation=0,
                     )
 
     # Add legend if hue provided
     if unique_vals is not None and color_map is not None:
+        # Scale legend line width with context
+        legend_linewidth = mpl.rcParams["lines.linewidth"] * 2
         handles = [
-            plt.Line2D([0], [0], color=color_map[val], lw=3) for val in unique_vals
+            plt.Line2D([0], [0], color=color_map[val], lw=legend_linewidth)
+            for val in unique_vals
         ]
         ax.legend(handles, unique_vals, title=hue, loc="best")
 
-        # Apply seaborn styling
+    # Apply Seaborn styling
     sns.despine(ax=ax)
-    ax.grid(True, alpha=0.3)
+    # Grid is controlled by Seaborn's style system (whitegrid/darkgrid vs white/dark/ticks)
+    # Don't override it here - respect the user's set_theme() choice
 
 
 if __name__ == "__main__":
