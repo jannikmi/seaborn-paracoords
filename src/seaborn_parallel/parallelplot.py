@@ -615,7 +615,7 @@ if __name__ == "__main__":
 
     parallelplot(
         data=df,
-        vars=["sepal_length", "sepal_width", "petal_length", "petal_width"],
+        vars=["sepal_length", "sepal_width", "petal_length", "petal_width", "species"],
         hue="species",
         orientation="horizontal",
         alpha=0.7,
