@@ -316,6 +316,7 @@ def _create_seaborn_plot(
     linewidth: float,
     palette: Optional[str],
     ax: Optional[plt.Axes],
+    original_hue_data: Optional[pd.Series] = None,
     **kwargs,
 ) -> so.Plot:
     """
@@ -339,6 +340,8 @@ def _create_seaborn_plot(
         Color palette
     ax : Axes or None
         Axes to plot on
+    original_hue_data : Series or None
+        Original (non-normalized) hue data for categorical variables
     **kwargs
         Additional arguments for so.Lines()
 
@@ -351,10 +354,36 @@ def _create_seaborn_plot(
     plot_data = data.copy()
     plot_data["_index"] = range(len(plot_data))
 
+    # Initialize variables with proper types
+    hue_col_for_plot: Optional[str] = None
+    hue_legend_title: Optional[str] = None
+
+    # Handle the case where hue variable is also in vars
+    # If hue is in vars, we need to duplicate it so it appears both as a grouping
+    # variable and as a plotted variable
+    if hue is not None and hue in vars:
+        # Create a duplicate column for hue so it can be both an id_var and a value_var
+        # IMPORTANT: Use the ORIGINAL (non-normalized) data for the hue column
+        # to preserve categorical values for proper legend display
+        if original_hue_data is not None:
+            plot_data["_hue_for_color"] = original_hue_data.values
+        else:
+            plot_data["_hue_for_color"] = data[
+                hue
+            ]  # Fallback to normalized if not provided
+        hue_col_for_plot = "_hue_for_color"
+        hue_legend_title = hue  # Remember original hue name for legend
+    else:
+        # Hue is not in vars, use original data if provided, otherwise normalized
+        if original_hue_data is not None:
+            plot_data[hue] = original_hue_data.values
+        hue_col_for_plot = hue
+        hue_legend_title = hue
+
     # Select only the variables we want to plot
     id_vars = ["_index"]
-    if hue is not None:
-        id_vars.append(hue)
+    if hue_col_for_plot is not None:
+        id_vars.append(hue_col_for_plot)
 
     # Melt data to tidy format
     melted = plot_data.melt(
@@ -367,16 +396,21 @@ def _create_seaborn_plot(
     else:  # horizontal
         x, y = "value", "variable"
 
-    plot = so.Plot(melted, x=x, y=y, color=hue)
+    plot = so.Plot(melted, x=x, y=y, color=hue_col_for_plot)
 
     # Add lines with grouping by index
     plot = plot.add(
         so.Lines(alpha=alpha, linewidth=linewidth, **kwargs), group="_index"
     )
 
-    # Set palette if specified
+    # Configure palette and legend
     if palette is not None:
         plot = plot.scale(color=palette)  # type: ignore[arg-type]
+
+    # Fix legend title if we used a duplicate column name for hue
+    if hue_col_for_plot == "_hue_for_color" and hue_legend_title is not None:
+        # Label the color scale with the original hue variable name
+        plot = plot.label(color=hue_legend_title)
 
     # Render to specific axes if provided
     if ax is not None:
@@ -449,15 +483,17 @@ def _add_independent_tick_labels(
     orient : {'v', 'h'}
         Orientation
     """
-    # Clear default tick positions
-    ax.set_xticks([])
-    ax.set_yticks([])
+    # For independent axes, we draw custom tick labels for values on each variable axis,
+    # but keep the variable names on the cross-axis (x for vertical, y for horizontal)
 
-    # Hide tick marks but keep labels for variable names
     if orient == "v":
-        ax.tick_params(axis="x", length=0)
+        # Vertical: clear y-axis ticks (values), keep x-axis ticks (variable names)
+        ax.set_yticks([])
+        ax.tick_params(axis="x", length=0)  # Hide tick marks, keep labels
     else:  # horizontal
-        ax.tick_params(axis="y", length=0)
+        # Horizontal: clear x-axis ticks (values), keep y-axis ticks (variable names)
+        ax.set_xticks([])
+        ax.tick_params(axis="y", length=0)  # Hide tick marks, keep labels
 
     _hide_all_spines(ax)
 
@@ -705,8 +741,19 @@ def parallelplot(
     )
 
     # Create Seaborn Objects plot
+    # Pass original categorical hue data if hue exists
+    original_hue_series = original_data[hue] if hue is not None else None
     plot = _create_seaborn_plot(
-        normalized_df, vars, hue, orient, alpha, linewidth, palette, ax, **kwargs
+        normalized_df,
+        vars,
+        hue,
+        orient,
+        alpha,
+        linewidth,
+        palette,
+        ax,
+        original_hue_data=original_hue_series,
+        **kwargs,
     )
 
     # Render plot
