@@ -3,6 +3,9 @@ BUGFIX
 
 the "grid" styles are not properly applied. the grid lines are missing
 
+- make ticks align with grid lines
+see aggressive_workaround_demo.py for a demonstration of working code. this is however not using seaborn utils as desired.
+
 
 MATURITY
 
