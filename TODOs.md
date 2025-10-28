@@ -40,6 +40,7 @@ also highlight the contributions of this package: This library fills a genuine g
 document clearly to the user that the ordering of the columns in the dataframe will be maintained for plotting.
 
 
+Mention the design decision to keep the core logic inside a single module file. This file can be downloaded and used standalone if needed.
 
 
 Add the instruction to alway run the pre-commit hooks after every completed change with "make hook" to the Agents.md file

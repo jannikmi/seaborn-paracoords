@@ -463,6 +463,237 @@ def _map_normalized_ticks_to_range(
     return [f"{global_min + (global_max - global_min) * tick:.2g}" for tick in ticks]
 
 
+def _extract_legend_alpha(colors: Any) -> float:
+    """
+    Extract alpha value from the first color in an array.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors (RGB or RGBA tuples)
+
+    Returns
+    -------
+    alpha : float
+        Alpha value (default 1.0 if not present)
+    """
+    first_color = colors[0] if len(colors) > 0 else None
+    default_alpha = 1.0
+    if first_color is not None and hasattr(first_color, "__len__"):
+        try:
+            if len(first_color) > 3:  # type: ignore[arg-type]
+                default_alpha = float(first_color[3])  # type: ignore[index]
+        except (TypeError, IndexError):
+            pass
+    return default_alpha
+
+
+def _get_unique_colors(colors: Any) -> List:
+    """
+    Get unique colors while preserving order.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors
+
+    Returns
+    -------
+    unique_colors : list
+        List of unique colors in order of first appearance
+    """
+    seen_colors = {}
+    unique_colors = []
+    for color in colors:
+        color_tuple = tuple(color)  # type: ignore[arg-type]
+        if color_tuple not in seen_colors:
+            seen_colors[color_tuple] = True
+            unique_colors.append(color)
+    return unique_colors
+
+
+def _create_legend_handles(
+    colors: Any, hue_values: np.ndarray
+) -> Tuple[List, List[str]]:
+    """
+    Create legend handles and labels from colors and hue values.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors from LineCollection
+    hue_values : ndarray
+        Unique hue values
+
+    Returns
+    -------
+    handles : list
+        List of Line2D objects for legend
+    labels : list of str
+        List of labels for legend
+    """
+    from matplotlib.lines import Line2D
+
+    unique_colors = _get_unique_colors(colors)
+    default_alpha = _extract_legend_alpha(colors)
+
+    handles = [
+        Line2D(
+            [0],
+            [0],
+            color=color,  # type: ignore[arg-type]
+            linewidth=2,
+            alpha=default_alpha,
+        )
+        for color in unique_colors[: len(hue_values)]
+    ]
+    labels = [str(val) for val in hue_values]
+
+    return handles, labels
+
+
+def _clear_figure_legends(ax: plt.Axes) -> None:
+    """
+    Clear accumulated legends from the figure.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    """
+    fig = ax.figure
+    if fig and hasattr(fig, "legends"):
+        fig.legends.clear()
+
+
+def _add_legend_from_line_collection(
+    ax: plt.Axes, hue: str, original_data: pd.DataFrame
+) -> None:
+    """
+    Create and add legend from LineCollection colors.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    hue : str
+        Hue variable name
+    original_data : DataFrame
+        Original (non-normalized) data
+    """
+    from matplotlib.collections import LineCollection
+
+    hue_values = original_data[hue].unique()
+    line_collections = [c for c in ax.collections if isinstance(c, LineCollection)]
+
+    if line_collections:
+        lc = line_collections[0]
+        colors = lc.get_colors()
+
+        handles, labels = _create_legend_handles(colors, hue_values)
+
+        _clear_figure_legends(ax)
+
+        # Add legend with proper font size from rcParams
+        ax.legend(
+            handles,
+            labels,
+            title=hue,
+            fontsize=plt.rcParams["legend.fontsize"],
+            title_fontsize=plt.rcParams["legend.title_fontsize"],
+        )
+
+
+def _update_existing_legend_fonts(legend: Any) -> None:
+    """
+    Update legend font sizes to match current rcParams.
+
+    Parameters
+    ----------
+    legend : Legend
+        Matplotlib legend object
+    """
+    for text in legend.get_texts():
+        text.set_fontsize(plt.rcParams["legend.fontsize"])
+    legend.get_title().set_fontsize(plt.rcParams["legend.title_fontsize"])
+
+
+def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> None:
+    """
+    Configure legend for hue variable.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    hue : str
+        Hue variable name
+    original_data : DataFrame
+        Original (non-normalized) data
+    """
+    existing_legend = ax.get_legend()
+
+    if existing_legend is None:
+        _add_legend_from_line_collection(ax, hue, original_data)
+    else:
+        # Legend already exists (created by seaborn objects in newer versions)
+        _update_existing_legend_fonts(existing_legend)
+
+
+def _configure_tick_params(ax: plt.Axes, axis: Literal["x", "y"]) -> None:
+    """
+    Configure tick parameters for an axis.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    axis : {'x', 'y'}
+        Axis name
+    """
+    labelsize_key = f"{axis}tick.labelsize"
+    ax.tick_params(axis=axis, labelsize=plt.rcParams[labelsize_key])
+
+
+def _fix_shared_axis_ticks(
+    ax: plt.Axes,
+    orient: Literal["v", "h"],
+    global_min: float,
+    global_max: float,
+) -> None:
+    """
+    Fix tick labels for shared axes to show original data range.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    orient : {'v', 'h'}
+        Orientation
+    global_min : float
+        Minimum value of global range
+    global_max : float
+        Maximum value of global range
+    """
+    if orient == "v":
+        # Vertical with sharey: fix y-axis ticks
+        yticks = ax.get_yticks()
+        new_labels = _map_normalized_ticks_to_range(yticks, global_min, global_max)
+        ax.set_yticks(yticks, labels=new_labels)
+        _configure_tick_params(ax, "x")
+        _configure_tick_params(ax, "y")
+    else:
+        # Horizontal with sharex: fix x-axis ticks
+        xticks = ax.get_xticks()
+        new_labels = _map_normalized_ticks_to_range(xticks, global_min, global_max)
+        ax.set_xticks(xticks, labels=new_labels)
+        _configure_tick_params(ax, "x")
+        _configure_tick_params(ax, "y")
+
+        # Fix inverted y-axis in horizontal orientation
+        _fix_inverted_yaxis_if_needed(ax)
+
+
 def _add_independent_tick_labels(
     ax: plt.Axes,
     vars: List[str],
@@ -780,83 +1011,8 @@ def parallelplot(
         result_ax = plt.gca()
 
     # Add legend manually when hue is specified
-    # Check if seaborn objects already created a legend (behavior may vary by version)
     if hue is not None:
-        existing_legend = result_ax.get_legend()
-
-        if existing_legend is None:
-            # No legend exists, create one from LineCollection colors
-            # Get unique hue values in order they appear
-            hue_values = original_data[hue].unique()
-
-            # Seaborn Objects uses LineCollection for the lines
-            # We need to extract colors from the LineCollection
-            from matplotlib.collections import LineCollection
-            from matplotlib.lines import Line2D
-
-            line_collections = [
-                c for c in result_ax.collections if isinstance(c, LineCollection)
-            ]
-
-            if line_collections:
-                lc = line_collections[0]
-                colors = lc.get_colors()
-
-                # Get unique colors while preserving order
-                seen_colors = {}
-                unique_colors = []
-                for color in colors:
-                    color_tuple = tuple(color)  # type: ignore[arg-type]
-                    if color_tuple not in seen_colors:
-                        seen_colors[color_tuple] = True
-                        unique_colors.append(color)
-
-                # Create legend handles (dummy Line2D objects with the right colors)
-                # Extract alpha from first color if it's RGBA (4 elements)
-                first_color = colors[0] if len(colors) > 0 else None
-                default_alpha = 1.0
-                if first_color is not None and hasattr(first_color, "__len__"):
-                    try:
-                        if len(first_color) > 3:  # type: ignore[arg-type]
-                            default_alpha = float(first_color[3])  # type: ignore[index]
-                    except (TypeError, IndexError):
-                        pass
-
-                handles = [
-                    Line2D(
-                        [0],
-                        [0],
-                        color=color,  # type: ignore[arg-type]
-                        linewidth=2,
-                        alpha=default_alpha,
-                    )
-                    for color in unique_colors[: len(hue_values)]
-                ]
-                labels = [str(val) for val in hue_values]
-
-                # Remove any existing legends from the figure to prevent duplicates in output
-                # matplotlib accumulates legends internally even if ax.get_legend() returns None
-                fig = result_ax.figure
-                if fig and hasattr(fig, "legends"):
-                    # Clear the figure's legend list to prevent accumulation
-                    fig.legends.clear()
-
-                # Add legend with proper font size from rcParams
-                result_ax.legend(
-                    handles,
-                    labels,
-                    title=hue,
-                    fontsize=plt.rcParams["legend.fontsize"],
-                    title_fontsize=plt.rcParams["legend.title_fontsize"],
-                )
-        else:
-            # Legend already exists (created by seaborn objects in newer versions)
-            # Update its font sizes to respect the current plotting context
-            for text in existing_legend.get_texts():
-                text.set_fontsize(plt.rcParams["legend.fontsize"])
-            existing_legend.get_title().set_fontsize(
-                plt.rcParams["legend.title_fontsize"]
-            )
+        _configure_legend(result_ax, hue, original_data)
 
     # Post-process for axes
     use_independent = (orient in ["v", "y"] and not sharey) or (
@@ -885,42 +1041,10 @@ def parallelplot(
             _fix_inverted_yaxis_if_needed(result_ax)
     else:
         # Shared axes: fix tick labels to show original data range instead of [0, 1]
-        # Get the global range from normalized data (all numeric vars share same range)
         numeric_vars = [v for v in vars if v not in categorical_info]
         if numeric_vars:
             # All numeric vars have the same global range when shared scaling is used
             global_min, global_max = original_ranges[numeric_vars[0]]
-
-            if normalized_orient == "v":
-                # Vertical with sharey: fix y-axis ticks
-                yticks = result_ax.get_yticks()
-                new_labels = _map_normalized_ticks_to_range(
-                    yticks, global_min, global_max
-                )
-                result_ax.set_yticks(yticks, labels=new_labels)
-                # Ensure variable names (x-axis) and value labels (y-axis) use correct font size
-                result_ax.tick_params(
-                    axis="x", labelsize=plt.rcParams["xtick.labelsize"]
-                )
-                result_ax.tick_params(
-                    axis="y", labelsize=plt.rcParams["ytick.labelsize"]
-                )
-            else:
-                # Horizontal with sharex: fix x-axis ticks
-                xticks = result_ax.get_xticks()
-                new_labels = _map_normalized_ticks_to_range(
-                    xticks, global_min, global_max
-                )
-                result_ax.set_xticks(xticks, labels=new_labels)
-                # Ensure variable names (y-axis) and value labels (x-axis) use correct font size
-                result_ax.tick_params(
-                    axis="x", labelsize=plt.rcParams["xtick.labelsize"]
-                )
-                result_ax.tick_params(
-                    axis="y", labelsize=plt.rcParams["ytick.labelsize"]
-                )
-
-                # Fix inverted y-axis in horizontal orientation
-                _fix_inverted_yaxis_if_needed(result_ax)
+            _fix_shared_axis_ticks(result_ax, normalized_orient, global_min, global_max)
 
     return result_ax
