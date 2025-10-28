@@ -76,22 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared axis behavior**: Shared axes now work correctly in both orientations
 - **Tick label overlap**: Better spacing prevents label collisions
 
-### Removed
-
-- Deprecated demo scripts:
-  - `demo_auto_selection.py` (superseded by `demo_datasets.py`)
-  - `demo_comparison.py` (superseded by `demo_orientations.py`)
-  - `demo_custom_styling.py` (functionality integrated into main demos)
-  - `demo_iris_combined.py`, `demo_iris_horizontal.py`, `demo_iris_vertical.py` (consolidated)
-  - `demo_normalization.py` (outdated approach)
-  - `demo_scaling_verification.py` (superseded by `demo_scaling.py`)
-  - `demo_tips.py` (incorporated into `demo_datasets.py`)
-  - `parallel_demo.py` (superseded by new demos)
-  - `test_new_features.py` (moved to test suite)
-
 ### Technical Details
 
-**Design Rationale** (from AGGRESSIVE_WORKAROUND_PLAN.md):
+**Design Rationale**:
 
 The new implementation follows an "aggressive workaround" strategy to achieve the best of both worlds:
 
@@ -108,12 +95,6 @@ The new implementation follows an "aggressive workaround" strategy to achieve th
 - **kwargs handling**: Passes styling kwargs to `so.Lines()` for maximum flexibility
 - **Constant columns**: Normalizes to 0.5 with warning message
 
-**Implementation phases completed**:
-
-- ✅ Phase 1: Core foundation with vertical orientation and independent axes
-- ✅ Phase 2: Full orientation support (both vertical and horizontal)
-- ✅ Phase 3: Categorical support with automatic detection
-- ✅ Phase 4: Polish, testing, and documentation
 
 **Known limitations**:
 
