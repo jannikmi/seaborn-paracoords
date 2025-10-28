@@ -415,6 +415,8 @@ def _add_independent_tick_labels_vertical(
     # Remove shared y-axis and hide all spines
     ax.set_yticks([])
     ax.set_ylabel("")
+    ax.set_xlabel("")  # Remove "variable" label
+    ax.tick_params(axis="x", length=0)  # Hide x-axis tick marks but keep labels
     _hide_all_spines(ax)
 
     # Add independent axis for each variable
@@ -450,6 +452,8 @@ def _add_independent_tick_labels_horizontal(
     # Remove shared x-axis and hide all spines
     ax.set_xticks([])
     ax.set_xlabel("")
+    ax.set_ylabel("")  # Remove "variable" label
+    ax.tick_params(axis="y", length=0)  # Hide y-axis tick marks but keep labels
     _hide_all_spines(ax)
 
     # Add independent axis for each variable
