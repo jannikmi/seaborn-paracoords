@@ -12,13 +12,13 @@ DEMOS = {
     "iris_vertical": "demo_iris_vertical.py",
     "iris_horizontal": "demo_iris_horizontal.py",
     "iris_combined": "demo_iris_combined.py",
+    "iris_parallel": "demo_iris_parallel.py",
     "tips": "demo_tips.py",
     "normalization": "demo_normalization.py",
     "custom_styling": "demo_custom_styling.py",
     "categorical_axes": "demo_categorical_axes.py",
     "comparison": "demo_comparison.py",
     "scaling_verification": "demo_scaling_verification.py",
-    "parallel_demo": "parallel_demo.py",
 }
 
 

@@ -1,6 +1,6 @@
 """
 Combined demo script showing both orientations of iris dataset.
-Run with: uv run python scripts/parallel_demo.py (or demo_iris_combined.py)
+Run with: uv run python scripts/demo_iris_parallel.py
 """
 
 import os
