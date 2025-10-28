@@ -1,7 +1,4 @@
 
-document the changes in the changelog for the new planned version 0.0.3
-include the design decisions and rationales behind them (found in AGGRESSIVE_WORKAROUND_PLAN.md)
-
 
 MATURITY
 
