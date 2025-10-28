@@ -713,13 +713,16 @@ def parallelplot(
     # Render plot
     plot_result = plot.plot()
 
-    # Extract axes
-    if hasattr(plot_result, "_figure"):
+    # Extract axes - use the provided ax if available, otherwise get from result
+    if ax is not None:
+        # User provided axes, use it directly
+        result_ax = ax
+    elif hasattr(plot_result, "_figure"):
         # Get the axes from the rendered plot
         fig = plot_result._figure
-        ax = fig.axes[0] if fig.axes else plt.gca()
+        result_ax = fig.axes[0] if fig.axes else plt.gca()
     else:
-        ax = plt.gca()
+        result_ax = plt.gca()
 
     # Seaborn Objects automatically adds legend when hue is specified
     # No need to manually add legend
@@ -732,15 +735,15 @@ def parallelplot(
     if use_independent:
         if orient in ["v", "y"]:
             _add_independent_tick_labels_vertical(
-                ax, vars, original_ranges, categorical_info, original_data
+                result_ax, vars, original_ranges, categorical_info, original_data
             )
         else:  # horizontal
             _add_independent_tick_labels_horizontal(
-                ax, vars, original_ranges, categorical_info, original_data
+                result_ax, vars, original_ranges, categorical_info, original_data
             )
             # Fix inverted y-axis in horizontal orientation
-            ylim = ax.get_ylim()
+            ylim = result_ax.get_ylim()
             if ylim[0] > ylim[1]:
-                ax.set_ylim(ylim[1], ylim[0])
+                result_ax.set_ylim(ylim[1], ylim[0])
 
-    return ax
+    return result_ax
