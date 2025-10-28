@@ -45,6 +45,9 @@ clean:
 parallel-demo:  ## Run parallel coordinates demo
 	uv run python scripts/parallel_demo.py
 
+test:  ## Run all tests
+	uv run pytest tests/ -v
+
 test-parallel:  ## Test parallel coordinates module
 	uv run pytest tests/test_parallelplot.py -v
 
