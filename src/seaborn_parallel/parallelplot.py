@@ -389,15 +389,16 @@ def _create_seaborn_plot(
     return plot
 
 
-def _add_independent_tick_labels_vertical(
+def _add_independent_tick_labels(
     ax: plt.Axes,
     vars: List[str],
     original_ranges: Dict[str, Tuple[float, float]],
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
+    orient: Literal["v", "h"],
 ) -> None:
     """
-    Add independent tick labels for vertical orientation.
+    Add independent tick labels for both orientations.
 
     Parameters
     ----------
@@ -411,55 +412,27 @@ def _add_independent_tick_labels_vertical(
         Categorical variable information
     data : DataFrame
         Original data (for dtypes)
+    orient : {'v', 'h'}
+        Orientation
     """
-    # Remove shared y-axis and hide all spines
-    ax.set_yticks([])
-    ax.set_ylabel("")
-    ax.set_xlabel("")  # Remove "variable" label
-    ax.tick_params(axis="x", length=0)  # Hide x-axis tick marks but keep labels
-    _hide_all_spines(ax)
-
-    # Add independent axis for each variable
-    for i, var in enumerate(vars):
-        _draw_axis_with_ticks(
-            ax, var, i, original_ranges, categorical_info, data, orient="v"
-        )
-
-
-def _add_independent_tick_labels_horizontal(
-    ax: plt.Axes,
-    vars: List[str],
-    original_ranges: Dict[str, Tuple[float, float]],
-    categorical_info: Dict[str, dict],
-    data: pd.DataFrame,
-) -> None:
-    """
-    Add independent tick labels for horizontal orientation.
-
-    Parameters
-    ----------
-    ax : Axes
-        Matplotlib axes
-    vars : list of str
-        Variables in order
-    original_ranges : dict
-        Original min/max for each variable
-    categorical_info : dict
-        Categorical variable information
-    data : DataFrame
-        Original data (for dtypes)
-    """
-    # Remove shared x-axis and hide all spines
+    # Clear default axes and labels
     ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_xlabel("")
-    ax.set_ylabel("")  # Remove "variable" label
-    ax.tick_params(axis="y", length=0)  # Hide y-axis tick marks but keep labels
+    ax.set_ylabel("")
+
+    # Hide tick marks but keep labels for variable names
+    if orient == "v":
+        ax.tick_params(axis="x", length=0)
+    else:  # horizontal
+        ax.tick_params(axis="y", length=0)
+
     _hide_all_spines(ax)
 
     # Add independent axis for each variable
     for i, var in enumerate(vars):
         _draw_axis_with_ticks(
-            ax, var, i, original_ranges, categorical_info, data, orient="h"
+            ax, var, i, original_ranges, categorical_info, data, orient=orient
         )
 
 
@@ -727,15 +700,19 @@ def parallelplot(
     )
 
     if use_independent:
-        if orient in ["v", "y"]:
-            _add_independent_tick_labels_vertical(
-                result_ax, vars, original_ranges, categorical_info, original_data
-            )
-        else:  # horizontal
-            _add_independent_tick_labels_horizontal(
-                result_ax, vars, original_ranges, categorical_info, original_data
-            )
-            # Fix inverted y-axis in horizontal orientation
+        # Normalize orient to 'v' or 'h'
+        normalized_orient: Literal["v", "h"] = "v" if orient in ["v", "y"] else "h"
+        _add_independent_tick_labels(
+            result_ax,
+            vars,
+            original_ranges,
+            categorical_info,
+            original_data,
+            normalized_orient,
+        )
+
+        # Fix inverted y-axis in horizontal orientation
+        if normalized_orient == "h":
             ylim = result_ax.get_ylim()
             if ylim[0] > ylim[1]:
                 result_ax.set_ylim(ylim[1], ylim[0])
