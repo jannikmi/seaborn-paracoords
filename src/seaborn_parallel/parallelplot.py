@@ -15,6 +15,171 @@ from typing import Optional, List, Dict, Tuple, Literal, Any
 import warnings
 
 
+def _hide_all_spines(ax: plt.Axes) -> None:
+    """Hide all axis spines (frame borders)."""
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+
+def _generate_ticks(
+    var: str,
+    original_ranges: Dict[str, Tuple[float, float]],
+    categorical_info: Dict[str, dict],
+    data: pd.DataFrame,
+) -> Tuple[List, List, np.ndarray]:
+    """
+    Generate tick values, labels, and normalized positions for a variable.
+
+    Parameters
+    ----------
+    var : str
+        Variable name
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Categorical variable information
+    data : DataFrame
+        Original data (for dtypes)
+
+    Returns
+    -------
+    tick_vals : list
+        Tick values in original scale
+    tick_labels : list
+        Tick labels as strings
+    norm_ticks : ndarray
+        Normalized tick positions [0, 1]
+    """
+    if var in categorical_info:
+        # Categorical variable
+        categories = categorical_info[var]["categories"]
+        tick_vals = categories
+        tick_labels = [str(cat) for cat in categories]
+        norm_ticks = np.linspace(0, 1, len(categories))
+    else:
+        # Numeric variable
+        min_val, max_val = original_ranges[var]
+
+        # Generate ticks using Seaborn's utility
+        locator = MaxNLocator(nbins=6)
+        tick_vals, tick_labels = locator_to_legend_entries(
+            locator, (min_val, max_val), data[var].dtype
+        )
+
+        # Normalize tick values to [0, 1] for positioning
+        tick_vals_array = np.array(tick_vals)
+        if max_val - min_val > 0:
+            norm_ticks = (tick_vals_array - min_val) / (max_val - min_val)
+        else:
+            norm_ticks = np.array([0.5])
+
+    return tick_vals, tick_labels, norm_ticks
+
+
+def _draw_axis_with_ticks(
+    ax: plt.Axes,
+    var: str,
+    position: float,
+    original_ranges: Dict[str, Tuple[float, float]],
+    categorical_info: Dict[str, dict],
+    data: pd.DataFrame,
+    orient: Literal["v", "h"],
+) -> None:
+    """
+    Draw a single axis with ticks and labels.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    var : str
+        Variable name
+    position : float
+        Position along the cross-axis (x for vertical, y for horizontal)
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Categorical variable information
+    data : DataFrame
+        Original data (for dtypes)
+    orient : {'v', 'h'}
+        Orientation
+    """
+    # Generate ticks
+    tick_vals, tick_labels, norm_ticks = _generate_ticks(
+        var, original_ranges, categorical_info, data
+    )
+
+    # Determine if categorical for text rotation
+    is_categorical = var in categorical_info
+
+    if orient == "v":
+        # Vertical: axis line from (position, 0) to (position, 1)
+        ax.plot(
+            [position, position],
+            [0, 1],
+            color="black",
+            linewidth=1.5,
+            clip_on=False,
+            zorder=100,
+        )
+
+        # Add ticks and labels
+        for label, pos in zip(tick_labels, norm_ticks):
+            # Tick mark
+            ax.plot(
+                [position - 0.02, position],
+                [pos, pos],
+                color="black",
+                linewidth=1,
+                clip_on=False,
+                zorder=100,
+            )
+            # Tick label
+            ax.text(
+                position - 0.04,
+                pos,
+                label,
+                ha="right",
+                va="center",
+                fontsize=9,
+                clip_on=False,
+            )
+    else:  # horizontal
+        # Horizontal: axis line from (0, position) to (1, position)
+        ax.plot(
+            [0, 1],
+            [position, position],
+            color="black",
+            linewidth=1.5,
+            clip_on=False,
+            zorder=100,
+        )
+
+        # Add ticks and labels
+        for label, pos in zip(tick_labels, norm_ticks):
+            # Tick mark
+            ax.plot(
+                [pos, pos],
+                [position - 0.02, position],
+                color="black",
+                linewidth=1,
+                clip_on=False,
+                zorder=100,
+            )
+            # Tick label (rotate categorical labels)
+            ax.text(
+                pos,
+                position - 0.04,
+                label,
+                ha="center",
+                va="top",
+                fontsize=9,
+                clip_on=False,
+                rotation=45 if is_categorical else 0,
+            )
+
+
 def _normalize_data(
     data: pd.DataFrame,
     vars: List[str],
@@ -247,103 +412,16 @@ def _add_independent_tick_labels_vertical(
     data : DataFrame
         Original data (for dtypes)
     """
-    # Remove shared y-axis
+    # Remove shared y-axis and hide all spines
     ax.set_yticks([])
     ax.set_ylabel("")
-    ax.spines["left"].set_visible(False)
-
-    # Get x-tick positions (one per variable)
-    x_positions = list(range(len(vars)))
+    _hide_all_spines(ax)
 
     # Add independent axis for each variable
     for i, var in enumerate(vars):
-        x_pos = x_positions[i]
-
-        # Check if categorical
-        if var in categorical_info:
-            # Categorical variable
-            categories = categorical_info[var]["categories"]
-            positions = np.linspace(0, 1, len(categories))
-
-            # Draw axis line
-            ax.plot(
-                [x_pos, x_pos],
-                [0, 1],
-                color="black",
-                linewidth=1.5,
-                clip_on=False,
-                zorder=100,
-            )
-
-            # Add ticks and labels for each category
-            for cat, pos in zip(categories, positions):
-                # Tick mark
-                ax.plot(
-                    [x_pos - 0.02, x_pos],
-                    [pos, pos],
-                    color="black",
-                    linewidth=1,
-                    clip_on=False,
-                    zorder=100,
-                )
-                # Category label
-                ax.text(
-                    x_pos - 0.04,
-                    pos,
-                    str(cat),
-                    ha="right",
-                    va="center",
-                    fontsize=9,
-                    clip_on=False,
-                )
-        else:
-            # Numeric variable
-            min_val, max_val = original_ranges[var]
-
-            # Generate ticks using Seaborn's utility
-            locator = MaxNLocator(nbins=6)
-            tick_vals, tick_labels = locator_to_legend_entries(
-                locator, (min_val, max_val), data[var].dtype
-            )
-
-            # Normalize tick values to [0, 1] for positioning
-            tick_vals_array = np.array(tick_vals)
-            if max_val - min_val > 0:
-                norm_ticks = (tick_vals_array - min_val) / (max_val - min_val)
-            else:
-                norm_ticks = np.array([0.5])
-
-            # Draw axis line
-            ax.plot(
-                [x_pos, x_pos],
-                [0, 1],
-                color="black",
-                linewidth=1.5,
-                clip_on=False,
-                zorder=100,
-            )
-
-            # Add ticks and labels
-            for val, label, pos in zip(tick_vals, tick_labels, norm_ticks):
-                # Tick mark
-                ax.plot(
-                    [x_pos - 0.02, x_pos],
-                    [pos, pos],
-                    color="black",
-                    linewidth=1,
-                    clip_on=False,
-                    zorder=100,
-                )
-                # Tick label
-                ax.text(
-                    x_pos - 0.04,
-                    pos,
-                    label,
-                    ha="right",
-                    va="center",
-                    fontsize=9,
-                    clip_on=False,
-                )
+        _draw_axis_with_ticks(
+            ax, var, i, original_ranges, categorical_info, data, orient="v"
+        )
 
 
 def _add_independent_tick_labels_horizontal(
@@ -369,104 +447,16 @@ def _add_independent_tick_labels_horizontal(
     data : DataFrame
         Original data (for dtypes)
     """
-    # Remove shared x-axis
+    # Remove shared x-axis and hide all spines
     ax.set_xticks([])
     ax.set_xlabel("")
-    ax.spines["bottom"].set_visible(False)
-
-    # Get y-tick positions (one per variable)
-    y_positions = list(range(len(vars)))
+    _hide_all_spines(ax)
 
     # Add independent axis for each variable
     for i, var in enumerate(vars):
-        y_pos = y_positions[i]
-
-        # Check if categorical
-        if var in categorical_info:
-            # Categorical variable
-            categories = categorical_info[var]["categories"]
-            positions = np.linspace(0, 1, len(categories))
-
-            # Draw axis line
-            ax.plot(
-                [0, 1],
-                [y_pos, y_pos],
-                color="black",
-                linewidth=1.5,
-                clip_on=False,
-                zorder=100,
-            )
-
-            # Add ticks and labels for each category
-            for cat, pos in zip(categories, positions):
-                # Tick mark
-                ax.plot(
-                    [pos, pos],
-                    [y_pos - 0.02, y_pos],
-                    color="black",
-                    linewidth=1,
-                    clip_on=False,
-                    zorder=100,
-                )
-                # Category label
-                ax.text(
-                    pos,
-                    y_pos - 0.04,
-                    str(cat),
-                    ha="center",
-                    va="top",
-                    fontsize=9,
-                    clip_on=False,
-                    rotation=45,
-                )
-        else:
-            # Numeric variable
-            min_val, max_val = original_ranges[var]
-
-            # Generate ticks using Seaborn's utility
-            locator = MaxNLocator(nbins=6)
-            tick_vals, tick_labels = locator_to_legend_entries(
-                locator, (min_val, max_val), data[var].dtype
-            )
-
-            # Normalize tick values to [0, 1] for positioning
-            tick_vals_array = np.array(tick_vals)
-            if max_val - min_val > 0:
-                norm_ticks = (tick_vals_array - min_val) / (max_val - min_val)
-            else:
-                norm_ticks = np.array([0.5])
-
-            # Draw axis line
-            ax.plot(
-                [0, 1],
-                [y_pos, y_pos],
-                color="black",
-                linewidth=1.5,
-                clip_on=False,
-                zorder=100,
-            )
-
-            # Add ticks and labels
-            for val, label, pos in zip(tick_vals, tick_labels, norm_ticks):
-                # Tick mark
-                ax.plot(
-                    [pos, pos],
-                    [y_pos - 0.02, y_pos],
-                    color="black",
-                    linewidth=1,
-                    clip_on=False,
-                    zorder=100,
-                )
-                # Tick label
-                ax.text(
-                    pos,
-                    y_pos - 0.04,
-                    label,
-                    ha="center",
-                    va="top",
-                    fontsize=9,
-                    clip_on=False,
-                )
+        _draw_axis_with_ticks(
+            ax, var, i, original_ranges, categorical_info, data, orient="h"
+        )
 
 
 def parallelplot(
