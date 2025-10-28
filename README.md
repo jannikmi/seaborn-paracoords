@@ -91,7 +91,7 @@ df = pd.DataFrame({
     "var3": [9, 10, 11, 12]
 })
 
-ax = snp.parallelplot(df, orientation="horizontal")
+ax = snp.parallelplot(df, orient="h")
 ```
 
 ### Categorical Axes

@@ -12,6 +12,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced customization options for axis styling
 - Integration with Seaborn's FacetGrid for multi-plot layouts
 
+## [0.0.3] - 2025-10-28
+
+### Changed
+
+- ⚠️ **BREAKING**: Complete reimplementation using **Seaborn Objects** with post-processing
+  - Previous implementation used matplotlib's `LineCollection` directly
+  - New implementation uses `seaborn.objects.Plot()` and `seaborn.objects.Lines()` for core rendering
+  - Post-processing adds independent axis tick labels when `sharex=False` or `sharey=False`
+  - **Migration**: Code should work without changes, but visual appearance may differ slightly due to Seaborn Objects rendering
+
+- ⚠️ **BREAKING**: Changed orientation parameter from `orientation` to `orient`
+  - Old: `orientation="vertical"` or `orientation="horizontal"`
+  - New: `orient="v"` or `orient="h"` (also accepts `orient="x"` and `orient="y"`)
+  - Aligns with Seaborn's convention (used in `catplot`, `boxplot`, etc.)
+  - **Migration**: Replace `orientation="vertical"` with `orient="v"` and `orientation="horizontal"` with `orient="h"`
+
+- **Improved Seaborn Integration**: Full native integration with Seaborn theming system
+  - Respects all Seaborn plotting contexts (`paper`, `notebook`, `talk`, `poster`)
+  - Line widths, tick sizes, and font sizes now automatically scale with context
+  - Grid lines respect current Seaborn style (`whitegrid`, `darkgrid`, `white`, `dark`, `ticks`)
+  - Axis styling matches Seaborn's internal behavior (uses `matplotlib.ticker.MaxNLocator` and `ScalarFormatter`)
+
+- **Enhanced Independent Axis Rendering**
+  - Custom axis lines drawn at each variable position with proper thickness
+  - Tick marks and labels positioned using Seaborn's `locator_to_legend_entries()` utility
+  - Smart tick formatting: integers shown without decimals, floats with appropriate precision
+  - No scientific notation or offset text (cleaner labels)
+  - Categorical labels automatically rotated 45° in horizontal orientation for readability
+
+### Added
+
+- **Automatic dtype-based categorical detection**
+  - Boolean columns (`True`/`False`) now treated as categorical
+  - Datetime columns automatically treated as categorical
+  - Object and category dtypes continue to work as categorical
+  - More intuitive behavior without explicit `categorical_axes` parameter
+
+- **Improved color handling for categorical hue variables**
+  - Categorical hue variables now properly mapped to Seaborn palettes
+  - Each category gets a distinct color from the palette
+  - Consistent color assignment across multiple plots
+  - Legend correctly shows all hue categories
+
+- **New demo scripts**
+  - `demo_datasets.py`: Showcases multiple datasets (iris, tips, penguins, diamonds)
+  - `demo_orientations.py`: Demonstrates vertical vs horizontal orientations
+  - `demo_scaling.py`: Shows shared vs independent axis scaling behavior
+  - `demo_seaborn_contexts.py`: Demonstrates all Seaborn contexts (paper/notebook/talk/poster)
+  - `scripts/README.md`: Documentation for all demo scripts
+
+- **Internal code reuse from Seaborn**
+  - Uses `seaborn.utils.locator_to_legend_entries()` for tick generation
+  - Leverages `matplotlib.ticker.MaxNLocator` for smart tick placement
+  - Follows Seaborn's axis formatting conventions throughout
+
+### Fixed
+
+- **Multi-plot layouts**: Fixed bugs when using `ax` parameter with subplot grids
+- **Duplicate legends**: Eliminated extra legends that appeared in some configurations
+- **Categorical hue alignment**: Categorical hue variables now correctly map to colors
+- **Y-axis inversion**: Fixed upside-down plots in certain configurations
+- **Shared axis behavior**: Shared axes now work correctly in both orientations
+- **Tick label overlap**: Better spacing prevents label collisions
+
+### Technical Details
+
+**Design Rationale**:
+
+The new implementation follows an "aggressive workaround" strategy to achieve the best of both worlds:
+
+1. **Native Seaborn integration**: Use Seaborn Objects for plotting to get theming, palettes, and consistent API
+2. **Independent axes**: Post-process matplotlib axes to add per-variable tick labels showing original data ranges
+3. **Data normalization**: Internally normalize data to [0,1] for rendering, then overlay custom tick labels
+
+**Key architectural decisions**:
+
+- **Return type**: Always returns `matplotlib.axes.Axes` (matches Seaborn's axis-level functions like `boxplot()`)
+- **Tick formatting**: Reuses Seaborn's `locator_to_legend_entries()` utility for consistency
+- **Grid rendering**: Respects current Seaborn style settings automatically
+- **Orientation API**: Follows Seaborn convention (`orient` parameter with values `'v'`, `'h'`, `'x'`, `'y'`)
+- **kwargs handling**: Passes styling kwargs to `so.Lines()` for maximum flexibility
+- **Constant columns**: Normalizes to 0.5 with warning message
+
+
+**Known limitations**:
+
+- Faceting not currently supported (users should use `so.Plot()` directly for faceting)
+- Custom tick labels are static (don't update on interactive zoom/pan)
+- Large datasets (>1000 lines) may render slowly due to matplotlib line rendering
+
+**Performance notes**:
+
+- For dense datasets, recommend `alpha=0.3` and `linewidth=0.5`
+- Consider sampling data for exploratory analysis of very large datasets
+- Shared axes (`sharex=True` or `sharey=True`) render faster with fewer custom elements
+
+### Documentation
+
+- Updated docstring with comprehensive examples and parameter documentation
+- Added design rationale in `AGGRESSIVE_WORKAROUND_PLAN.md` (715 lines)
+- Created `SEABORN_INTEGRATION_PLAN.md` explaining integration strategy
+- Added `SEABORN_OBJECTS_COMPARISON.md` comparing approaches
+- Added `SEABORN_WRAPPER_ADVANTAGES.md` documenting benefits
+- Updated `TODOs.md` with future enhancement plans
+- Added `scripts/README.md` explaining all demo scripts
+
 ## [0.0.2] - 2025-10-27
 
 ### Added
@@ -115,6 +221,7 @@ Security-related changes
 
 ---
 
-[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/jannikmi/seaborn-paracoords/releases/tag/v0.0.1

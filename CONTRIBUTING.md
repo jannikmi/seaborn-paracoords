@@ -249,7 +249,7 @@ def test_feature_name():
     df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
 
     # Execute
-    ax = snp.parallelplot(df, orientation='vertical')
+    ax = snp.parallelplot(df, orient='v')
 
     # Assert
     assert ax is not None

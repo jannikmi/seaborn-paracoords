@@ -1,6 +1,6 @@
 [project]
 name = "seaborn-paracoords"
-version = "0.0.2"
+version = "0.0.3"
 description = "A prototype implementation of parallel coordinates plots compatible with Seaborn's API and styling system."
 authors = [{name = "Jannik Kissinger", email = "github@michelfe.it"}]
 license = "MIT"

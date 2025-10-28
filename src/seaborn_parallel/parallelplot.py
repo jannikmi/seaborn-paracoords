@@ -1,24 +1,753 @@
 """
-Parallel coordinates plotting with Seaborn integration.
+Parallel coordinates plotting with Seaborn Objects integration.
 
-This module provides a prototype implementation of parallel coordinates plots
-compatible with Seaborn's API and styling system.
+This module provides parallel coordinates plots using Seaborn Objects
+with post-processing for independent axis support.
 """
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-import seaborn as sns
-from typing import Optional, List, Any
+import seaborn.objects as so
+from seaborn.utils import locator_to_legend_entries
+from matplotlib.ticker import MaxNLocator
+from typing import Optional, List, Dict, Tuple, Literal, Any
 import warnings
+
+
+def _hide_all_spines(ax: plt.Axes) -> None:
+    """Hide all axis spines (frame borders)."""
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+
+def _generate_ticks(
+    var: str,
+    original_ranges: Dict[str, Tuple[float, float]],
+    categorical_info: Dict[str, dict],
+    data: pd.DataFrame,
+) -> Tuple[List, List, np.ndarray]:
+    """
+    Generate tick values, labels, and normalized positions for a variable.
+
+    Parameters
+    ----------
+    var : str
+        Variable name
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Categorical variable information
+    data : DataFrame
+        Original data (for dtypes)
+
+    Returns
+    -------
+    tick_vals : list
+        Tick values in original scale
+    tick_labels : list
+        Tick labels as strings
+    norm_ticks : ndarray
+        Normalized tick positions [0, 1]
+    """
+    if var in categorical_info:
+        # Categorical variable
+        categories = categorical_info[var]["categories"]
+        tick_vals = categories
+        tick_labels = [str(cat) for cat in categories]
+        norm_ticks = np.linspace(0, 1, len(categories))
+    else:
+        # Numeric variable
+        min_val, max_val = original_ranges[var]
+
+        # Generate ticks using Seaborn's utility
+        locator = MaxNLocator(nbins=6)
+        tick_vals, tick_labels = locator_to_legend_entries(
+            locator, (min_val, max_val), data[var].dtype
+        )
+
+        # Normalize tick values to [0, 1] for positioning
+        tick_vals_array = np.array(tick_vals)
+        if max_val - min_val > 0:
+            norm_ticks = (tick_vals_array - min_val) / (max_val - min_val)
+        else:
+            norm_ticks = np.array([0.5])
+
+    return tick_vals, tick_labels, norm_ticks
+
+
+def _draw_axis_with_ticks(
+    ax: plt.Axes,
+    var: str,
+    position: float,
+    original_ranges: Dict[str, Tuple[float, float]],
+    categorical_info: Dict[str, dict],
+    data: pd.DataFrame,
+    orient: Literal["v", "h"],
+) -> None:
+    """
+    Draw a single axis with ticks and labels.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    var : str
+        Variable name
+    position : float
+        Position along the cross-axis (x for vertical, y for horizontal)
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Categorical variable information
+    data : DataFrame
+        Original data (for dtypes)
+    orient : {'v', 'h'}
+        Orientation
+    """
+    # Generate ticks
+    tick_vals, tick_labels, norm_ticks = _generate_ticks(
+        var, original_ranges, categorical_info, data
+    )
+
+    # Determine if categorical for text rotation
+    is_categorical = var in categorical_info
+
+    # Get line width and font size from current matplotlib rcParams
+    # This ensures we respect seaborn plotting contexts
+    axis_linewidth = plt.rcParams["axes.linewidth"]
+    tick_linewidth = plt.rcParams["xtick.major.width"]
+    tick_labelsize = plt.rcParams["xtick.labelsize"]
+
+    if orient == "v":
+        # Vertical: axis line from (position, 0) to (position, 1)
+        ax.plot(
+            [position, position],
+            [0, 1],
+            color="black",
+            linewidth=axis_linewidth,
+            clip_on=False,
+            zorder=100,
+        )
+
+        # Add ticks and labels
+        for label, pos in zip(tick_labels, norm_ticks):
+            # Tick mark
+            ax.plot(
+                [position - 0.02, position],
+                [pos, pos],
+                color="black",
+                linewidth=tick_linewidth,
+                clip_on=False,
+                zorder=100,
+            )
+            # Tick label
+            ax.text(
+                position - 0.04,
+                pos,
+                label,
+                ha="right",
+                va="center",
+                fontsize=tick_labelsize,
+                clip_on=False,
+            )
+    else:  # horizontal
+        # Horizontal: axis line from (0, position) to (1, position)
+        ax.plot(
+            [0, 1],
+            [position, position],
+            color="black",
+            linewidth=axis_linewidth,
+            clip_on=False,
+            zorder=100,
+        )
+
+        # Add ticks and labels
+        for label, pos in zip(tick_labels, norm_ticks):
+            # Tick mark
+            ax.plot(
+                [pos, pos],
+                [position - 0.02, position],
+                color="black",
+                linewidth=tick_linewidth,
+                clip_on=False,
+                zorder=100,
+            )
+            # Tick label (rotate categorical labels)
+            ax.text(
+                pos,
+                position - 0.04,
+                label,
+                ha="center",
+                va="top",
+                fontsize=tick_labelsize,
+                clip_on=False,
+                rotation=45 if is_categorical else 0,
+            )
+
+
+def _normalize_data(
+    data: pd.DataFrame,
+    vars: List[str],
+    hue: Optional[str],
+    orient: str,
+    sharex: bool,
+    sharey: bool,
+    category_orders: Optional[Dict[str, List]] = None,
+) -> Tuple[pd.DataFrame, Dict[str, Tuple[float, float]], Dict[str, dict]]:
+    """
+    Normalize data to [0, 1] range for plotting.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input data
+    vars : list of str
+        Variables to normalize
+    hue : str or None
+        Hue variable (not normalized)
+    orient : str
+        Orientation
+    sharex : bool
+        Share x-axis range (for horizontal)
+    sharey : bool
+        Share y-axis range (for vertical)
+    category_orders : dict, optional
+        Custom category orders
+
+    Returns
+    -------
+    normalized_df : DataFrame
+        Normalized data
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Information about categorical variables
+    """
+    normalized_df = data.copy()
+    original_ranges = {}
+    categorical_info = {}
+
+    # Determine if we need shared scaling
+    use_shared = (orient in ["v", "y"] and sharey) or (orient in ["h", "x"] and sharex)
+
+    # Separate numeric and categorical columns
+    numeric_vars = []
+    categorical_vars = []
+
+    for var in vars:
+        # Check dtype: boolean, datetime, and object types are categorical
+        dtype = data[var].dtype
+        if pd.api.types.is_bool_dtype(dtype) or pd.api.types.is_datetime64_any_dtype(
+            dtype
+        ):
+            # Boolean and datetime are treated as categorical
+            categorical_vars.append(var)
+            categorical_info[var] = {
+                "type": "categorical",
+                "categories": data[var].unique().tolist(),
+            }
+        elif pd.api.types.is_numeric_dtype(dtype):
+            numeric_vars.append(var)
+        else:
+            # String/object types are categorical
+            categorical_vars.append(var)
+            categorical_info[var] = {
+                "type": "categorical",
+                "categories": data[var].unique().tolist(),
+            }
+
+    # Normalize numeric variables
+    if use_shared and numeric_vars:
+        # Shared scaling: find global min/max
+        all_values = data[numeric_vars].values.flatten()
+        global_min = np.nanmin(all_values)
+        global_max = np.nanmax(all_values)
+
+        for var in numeric_vars:
+            original_ranges[var] = (global_min, global_max)
+            if global_max - global_min > 0:
+                normalized_df[var] = (data[var] - global_min) / (
+                    global_max - global_min
+                )
+            else:
+                warnings.warn(f"All numeric columns have constant value {global_min}")
+                normalized_df[var] = 0.5
+    else:
+        # Independent scaling: normalize each variable independently
+        for var in numeric_vars:
+            min_val = data[var].min()
+            max_val = data[var].max()
+            original_ranges[var] = (min_val, max_val)
+
+            if max_val - min_val > 0:
+                normalized_df[var] = (data[var] - min_val) / (max_val - min_val)
+            else:
+                warnings.warn(
+                    f"Variable '{var}' has constant value {min_val}, normalizing to 0.5"
+                )
+                normalized_df[var] = 0.5
+
+    # Handle categorical variables (encode as codes, then normalize)
+    for var in categorical_vars:
+        # Use custom order if provided, otherwise use data order
+        if category_orders and var in category_orders:
+            categories = category_orders[var]
+        else:
+            categories = categorical_info[var]["categories"]
+
+        categorical_info[var]["categories"] = categories
+
+        # Create categorical with explicit order
+        cat_data = pd.Categorical(data[var], categories=categories)
+        codes = cat_data.codes
+
+        # Normalize codes to [0, 1]
+        if len(categories) > 1:
+            normalized_df[var] = codes / (len(categories) - 1)
+        else:
+            normalized_df[var] = 0.5
+
+        original_ranges[var] = (0, len(categories) - 1)
+
+    return normalized_df, original_ranges, categorical_info
+
+
+def _create_seaborn_plot(
+    data: pd.DataFrame,
+    vars: List[str],
+    hue: Optional[str],
+    orient: str,
+    alpha: float,
+    linewidth: float,
+    palette: Optional[str],
+    ax: Optional[plt.Axes],
+    original_hue_data: Optional[pd.Series] = None,
+    **kwargs,
+) -> so.Plot:
+    """
+    Create Seaborn Objects plot.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Normalized data (already in [0, 1] range)
+    vars : list of str
+        Variables to plot
+    hue : str or None
+        Hue variable
+    orient : str
+        Orientation
+    alpha : float
+        Line transparency
+    linewidth : float
+        Line width
+    palette : str or None
+        Color palette
+    ax : Axes or None
+        Axes to plot on
+    original_hue_data : Series or None
+        Original (non-normalized) hue data for categorical variables
+    **kwargs
+        Additional arguments for so.Lines()
+
+    Returns
+    -------
+    plot : so.Plot
+        Seaborn Objects Plot instance
+    """
+    # Add index column for grouping
+    plot_data = data.copy()
+    plot_data["_index"] = range(len(plot_data))
+
+    # Initialize variables with proper types
+    hue_col_for_plot: Optional[str] = None
+    hue_legend_title: Optional[str] = None
+
+    # Handle the case where hue variable is also in vars
+    # If hue is in vars, we need to duplicate it so it appears both as a grouping
+    # variable and as a plotted variable
+    if hue is not None and hue in vars:
+        # Create a duplicate column for hue so it can be both an id_var and a value_var
+        # IMPORTANT: Use the ORIGINAL (non-normalized) data for the hue column
+        # to preserve categorical values for proper legend display
+        if original_hue_data is not None:
+            plot_data["_hue_for_color"] = original_hue_data.values
+        else:
+            plot_data["_hue_for_color"] = data[
+                hue
+            ]  # Fallback to normalized if not provided
+        hue_col_for_plot = "_hue_for_color"
+        hue_legend_title = hue  # Remember original hue name for legend
+    else:
+        # Hue is not in vars, use original data if provided, otherwise normalized
+        if original_hue_data is not None:
+            plot_data[hue] = original_hue_data.values
+        hue_col_for_plot = hue
+        hue_legend_title = hue
+
+    # Select only the variables we want to plot
+    id_vars = ["_index"]
+    if hue_col_for_plot is not None:
+        id_vars.append(hue_col_for_plot)
+
+    # Melt data to tidy format
+    melted = plot_data.melt(
+        id_vars=id_vars, value_vars=vars, var_name="variable", value_name="value"
+    )
+
+    # Create plot
+    if orient in ["v", "y"]:
+        x, y = "variable", "value"
+    else:  # horizontal
+        x, y = "value", "variable"
+
+    plot = so.Plot(melted, x=x, y=y, color=hue_col_for_plot)
+
+    # Add lines with grouping by index
+    plot = plot.add(
+        so.Lines(alpha=alpha, linewidth=linewidth, **kwargs), group="_index"
+    )
+
+    # Configure palette and legend
+    if palette is not None:
+        plot = plot.scale(color=palette)  # type: ignore[arg-type]
+
+    # Fix legend title if we used a duplicate column name for hue
+    if hue_col_for_plot == "_hue_for_color" and hue_legend_title is not None:
+        # Label the color scale with the original hue variable name
+        plot = plot.label(color=hue_legend_title)
+
+    # Render to specific axes if provided
+    if ax is not None:
+        plot = plot.on(ax)
+
+    return plot
+
+
+def _clear_axis_labels(ax: plt.Axes) -> None:
+    """Clear both x and y axis labels."""
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+
+
+def _fix_inverted_yaxis_if_needed(ax: plt.Axes) -> None:
+    """Fix inverted y-axis in horizontal orientation plots."""
+    ylim = ax.get_ylim()
+    if ylim[0] > ylim[1]:
+        ax.set_ylim(ylim[1], ylim[0])
+
+
+def _map_normalized_ticks_to_range(
+    ticks: np.ndarray,
+    global_min: float,
+    global_max: float,
+) -> List[str]:
+    """
+    Map normalized [0, 1] tick positions to original data range labels.
+
+    Parameters
+    ----------
+    ticks : ndarray
+        Tick positions in normalized [0, 1] space
+    global_min : float
+        Minimum value of original data range
+    global_max : float
+        Maximum value of original data range
+
+    Returns
+    -------
+    labels : list of str
+        Tick labels showing original data values
+    """
+    return [f"{global_min + (global_max - global_min) * tick:.2g}" for tick in ticks]
+
+
+def _extract_legend_alpha(colors: Any) -> float:
+    """
+    Extract alpha value from the first color in an array.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors (RGB or RGBA tuples)
+
+    Returns
+    -------
+    alpha : float
+        Alpha value (default 1.0 if not present)
+    """
+    first_color = colors[0] if len(colors) > 0 else None
+    default_alpha = 1.0
+    if first_color is not None and hasattr(first_color, "__len__"):
+        try:
+            if len(first_color) > 3:  # type: ignore[arg-type]
+                default_alpha = float(first_color[3])  # type: ignore[index]
+        except (TypeError, IndexError):
+            pass
+    return default_alpha
+
+
+def _get_unique_colors(colors: Any) -> List:
+    """
+    Get unique colors while preserving order.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors
+
+    Returns
+    -------
+    unique_colors : list
+        List of unique colors in order of first appearance
+    """
+    seen_colors = {}
+    unique_colors = []
+    for color in colors:
+        color_tuple = tuple(color)  # type: ignore[arg-type]
+        if color_tuple not in seen_colors:
+            seen_colors[color_tuple] = True
+            unique_colors.append(color)
+    return unique_colors
+
+
+def _create_legend_handles(
+    colors: Any, hue_values: np.ndarray
+) -> Tuple[List, List[str]]:
+    """
+    Create legend handles and labels from colors and hue values.
+
+    Parameters
+    ----------
+    colors : Any
+        Array of colors from LineCollection
+    hue_values : ndarray
+        Unique hue values
+
+    Returns
+    -------
+    handles : list
+        List of Line2D objects for legend
+    labels : list of str
+        List of labels for legend
+    """
+    from matplotlib.lines import Line2D
+
+    unique_colors = _get_unique_colors(colors)
+    default_alpha = _extract_legend_alpha(colors)
+
+    handles = [
+        Line2D(
+            [0],
+            [0],
+            color=color,  # type: ignore[arg-type]
+            linewidth=2,
+            alpha=default_alpha,
+        )
+        for color in unique_colors[: len(hue_values)]
+    ]
+    labels = [str(val) for val in hue_values]
+
+    return handles, labels
+
+
+def _clear_figure_legends(ax: plt.Axes) -> None:
+    """
+    Clear accumulated legends from the figure.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    """
+    fig = ax.figure
+    if fig and hasattr(fig, "legends"):
+        fig.legends.clear()
+
+
+def _add_legend_from_line_collection(
+    ax: plt.Axes, hue: str, original_data: pd.DataFrame
+) -> None:
+    """
+    Create and add legend from LineCollection colors.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    hue : str
+        Hue variable name
+    original_data : DataFrame
+        Original (non-normalized) data
+    """
+    from matplotlib.collections import LineCollection
+
+    hue_values = original_data[hue].unique()
+    line_collections = [c for c in ax.collections if isinstance(c, LineCollection)]
+
+    if line_collections:
+        lc = line_collections[0]
+        colors = lc.get_colors()
+
+        handles, labels = _create_legend_handles(colors, hue_values)
+
+        _clear_figure_legends(ax)
+
+        # Add legend with proper font size from rcParams
+        ax.legend(
+            handles,
+            labels,
+            title=hue,
+            fontsize=plt.rcParams["legend.fontsize"],
+            title_fontsize=plt.rcParams["legend.title_fontsize"],
+        )
+
+
+def _update_existing_legend_fonts(legend: Any) -> None:
+    """
+    Update legend font sizes to match current rcParams.
+
+    Parameters
+    ----------
+    legend : Legend
+        Matplotlib legend object
+    """
+    for text in legend.get_texts():
+        text.set_fontsize(plt.rcParams["legend.fontsize"])
+    legend.get_title().set_fontsize(plt.rcParams["legend.title_fontsize"])
+
+
+def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> None:
+    """
+    Configure legend for hue variable.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    hue : str
+        Hue variable name
+    original_data : DataFrame
+        Original (non-normalized) data
+    """
+    existing_legend = ax.get_legend()
+
+    if existing_legend is None:
+        _add_legend_from_line_collection(ax, hue, original_data)
+    else:
+        # Legend already exists (created by seaborn objects in newer versions)
+        _update_existing_legend_fonts(existing_legend)
+
+
+def _configure_tick_params(ax: plt.Axes, axis: Literal["x", "y"]) -> None:
+    """
+    Configure tick parameters for an axis.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    axis : {'x', 'y'}
+        Axis name
+    """
+    labelsize_key = f"{axis}tick.labelsize"
+    ax.tick_params(axis=axis, labelsize=plt.rcParams[labelsize_key])
+
+
+def _fix_shared_axis_ticks(
+    ax: plt.Axes,
+    orient: Literal["v", "h"],
+    global_min: float,
+    global_max: float,
+) -> None:
+    """
+    Fix tick labels for shared axes to show original data range.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    orient : {'v', 'h'}
+        Orientation
+    global_min : float
+        Minimum value of global range
+    global_max : float
+        Maximum value of global range
+    """
+    if orient == "v":
+        # Vertical with sharey: fix y-axis ticks
+        yticks = ax.get_yticks()
+        new_labels = _map_normalized_ticks_to_range(yticks, global_min, global_max)
+        ax.set_yticks(yticks, labels=new_labels)
+        _configure_tick_params(ax, "x")
+        _configure_tick_params(ax, "y")
+    else:
+        # Horizontal with sharex: fix x-axis ticks
+        xticks = ax.get_xticks()
+        new_labels = _map_normalized_ticks_to_range(xticks, global_min, global_max)
+        ax.set_xticks(xticks, labels=new_labels)
+        _configure_tick_params(ax, "x")
+        _configure_tick_params(ax, "y")
+
+        # Fix inverted y-axis in horizontal orientation
+        _fix_inverted_yaxis_if_needed(ax)
+
+
+def _add_independent_tick_labels(
+    ax: plt.Axes,
+    vars: List[str],
+    original_ranges: Dict[str, Tuple[float, float]],
+    categorical_info: Dict[str, dict],
+    data: pd.DataFrame,
+    orient: Literal["v", "h"],
+) -> None:
+    """
+    Add independent tick labels for both orientations.
+
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes
+    vars : list of str
+        Variables in order
+    original_ranges : dict
+        Original min/max for each variable
+    categorical_info : dict
+        Categorical variable information
+    data : DataFrame
+        Original data (for dtypes)
+    orient : {'v', 'h'}
+        Orientation
+    """
+    # For independent axes, we draw custom tick labels for values on each variable axis,
+    # but keep the variable names on the cross-axis (x for vertical, y for horizontal)
+
+    if orient == "v":
+        # Vertical: clear y-axis ticks (values), keep x-axis ticks (variable names)
+        ax.set_yticks([])
+        # Hide tick marks, keep labels, and ensure labels use the correct font size
+        ax.tick_params(axis="x", length=0, labelsize=plt.rcParams["xtick.labelsize"])
+    else:  # horizontal
+        # Horizontal: clear x-axis ticks (values), keep y-axis ticks (variable names)
+        ax.set_xticks([])
+        # Hide tick marks, keep labels, and ensure labels use the correct font size
+        ax.tick_params(axis="y", length=0, labelsize=plt.rcParams["ytick.labelsize"])
+
+    _hide_all_spines(ax)
+
+    # Add independent axis for each variable
+    for i, var in enumerate(vars):
+        _draw_axis_with_ticks(
+            ax, var, i, original_ranges, categorical_info, data, orient=orient
+        )
 
 
 def parallelplot(
     data: pd.DataFrame,
     vars: Optional[List[str]] = None,
     hue: Optional[str] = None,
-    orientation: str = "vertical",
+    orient: Literal["v", "h", "x", "y"] = "v",
     alpha: float = 0.6,
     linewidth: float = 1.0,
     palette: Optional[str] = None,
@@ -26,616 +755,296 @@ def parallelplot(
     sharex: bool = False,
     sharey: bool = False,
     categorical_axes: Optional[List[str]] = None,
-    category_orders: Optional[dict] = None,
+    category_orders: Optional[Dict[str, List]] = None,
     **kwargs: Any,
 ) -> plt.Axes:
     """
-    Draw a parallel coordinates plot.
+    Draw parallel coordinates plot with Seaborn Objects integration.
 
-    This function supports both numeric and categorical variables, with automatic
-    detection of categorical axes for non-numeric columns.
+    Parallel coordinates plots visualize multivariate data by representing each
+    observation as a line connecting its values across multiple variables. Each
+    variable is displayed on a separate vertical or horizontal axis.
+
+    This implementation uses Seaborn Objects for rendering with post-processing
+    to provide independent axes for each variable, preserving original data ranges
+    (not normalized to [0,1] in the display).
 
     Parameters
     ----------
     data : DataFrame
-        Input data structure
+        Input data in tidy (long) or wide format. Each row represents one observation.
     vars : list of str, optional
-        Variables to plot. If None, uses all columns (both numeric and categorical)
+        Variables (column names) to include in the plot. If None (default), all
+        numeric columns except `hue` are used. Columns can be numeric, categorical,
+        boolean, or datetime.
     hue : str, optional
-        Variable for color encoding
-    orientation : {"vertical", "horizontal"}, default "vertical"
-        Plot orientation
+        Column name for color encoding. Each unique value gets a different color.
+        A legend is automatically added when hue is specified.
+    orient : {'v', 'h', 'x', 'y'}, default 'v'
+        Orientation of the plot:
+        - 'v' or 'y': Vertical (variables on x-axis, values on y-axis)
+        - 'h' or 'x': Horizontal (variables on y-axis, values on x-axis)
     alpha : float, default 0.6
-        Line transparency
+        Line transparency (0=transparent, 1=opaque). Lower values help visualize
+        overlapping lines in dense datasets.
     linewidth : float, default 1.0
-        Line width
+        Width of the lines in points. Decrease for datasets with many observations.
     palette : str, optional
-        Color palette name
+        Seaborn color palette name (e.g., 'deep', 'muted', 'pastel', 'Set2').
+        Only used when `hue` is specified. If None, uses the current color cycle.
     ax : Axes, optional
-        Matplotlib axes to plot on
+        Matplotlib axes object to draw the plot onto. If None, uses current axes.
     sharex : bool, default False
-        Share x-axis range across all numeric variables (applies to horizontal orientation).
-        Does not affect categorical axes.
+        If True (horizontal orientation), all variables share the same x-axis range.
+        This normalizes all variables to a common scale. Has no effect with vertical
+        orientation (use `sharey` instead).
     sharey : bool, default False
-        Share y-axis range across all numeric variables (applies to vertical orientation).
-        Does not affect categorical axes.
+        If True (vertical orientation), all variables share the same y-axis range.
+        This normalizes all variables to a common scale. Has no effect with horizontal
+        orientation (use `sharex` instead).
     categorical_axes : list of str, optional
-        Explicitly specify which variables should be treated as categorical.
-        If None, non-numeric columns are automatically detected as categorical.
+        Deprecated. Categorical variables are now automatically detected based on
+        dtype (object, category, bool, datetime). Keep for backward compatibility
+        but ignored in current implementation.
     category_orders : dict, optional
-        Dictionary mapping categorical variable names to lists specifying the order
-        of categories. If not provided, categories are ordered alphabetically.
-        Example: {"size": ["small", "medium", "large"], "rating": ["low", "high"]}
+        Custom ordering for categorical variables. Keys are variable names, values
+        are lists specifying the desired category order.
+        Example: {'species': ['setosa', 'versicolor', 'virginica']}
     **kwargs
-        Additional arguments passed to LineCollection
+        Additional keyword arguments passed to seaborn.objects.Lines().
+        Common options: 'color', 'linestyle', 'marker', etc.
 
     Returns
     -------
-    ax : Axes
-        The matplotlib axes containing the plot
+    ax : matplotlib.axes.Axes
+        The Axes object containing the plot.
+
+    See Also
+    --------
+    seaborn.objects.Plot : Seaborn's declarative plotting interface
+    pandas.plotting.parallel_coordinates : Pandas parallel coordinates (different API)
+
+    Notes
+    -----
+    **Key Features:**
+    - Preserves original data ranges (not normalized to [0,1] in display)
+    - Supports both numeric and categorical variables
+    - Automatic dtype detection (bool, datetime treated as categorical)
+    - Independent axes per variable (when sharex/sharey=False)
+    - Full Seaborn theming integration
+
+    **Limitations:**
+    - Faceting not currently supported (may be added in future)
+    - Custom tick labels are static (don't update on interactive zoom/pan)
+    - Large datasets (>1000 lines) may render slowly
+
+    **Performance Tips:**
+    - For dense data, decrease `alpha` (e.g., 0.3) and `linewidth` (e.g., 0.5)
+    - Consider filtering to representative sample for exploratory analysis
+    - Use `sharex=True` or `sharey=True` for simpler plots with fewer custom ticks
 
     Examples
     --------
-    Basic usage with automatic categorical detection:
+    Basic usage with iris dataset:
 
-    >>> import pandas as pd
+    >>> import seaborn as sns
     >>> import seaborn_parallel as snp
-    >>> df = pd.DataFrame({
-    ...     "species": ["setosa", "versicolor", "virginica"],
-    ...     "sepal_length": [5.1, 7.0, 6.3],
-    ...     "petal_width": [0.2, 1.3, 2.5]
-    ... })
-    >>> ax = snp.parallelplot(df)  # 'species' automatically detected as categorical
+    >>> iris = sns.load_dataset('iris')
+    >>> ax = snp.parallelplot(iris, hue='species')
 
-    Explicit categorical specification with custom ordering:
+    Horizontal orientation with custom styling:
 
-    >>> df = pd.DataFrame({
-    ...     "size": ["small", "large", "medium"],
-    ...     "score": [85, 95, 90]
-    ... })
     >>> ax = snp.parallelplot(
-    ...     df,
-    ...     categorical_axes=["size"],
-    ...     category_orders={"size": ["small", "medium", "large"]}
+    ...     iris,
+    ...     hue='species',
+    ...     orient='h',
+    ...     alpha=0.4,
+    ...     linewidth=1.5,
+    ...     palette='Set2'
+    ... )
+
+    Select specific variables and use shared scaling:
+
+    >>> ax = snp.parallelplot(
+    ...     iris,
+    ...     vars=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'],
+    ...     hue='species',
+    ...     sharey=True,
+    ...     palette='muted'
+    ... )
+
+    Mixed numeric and categorical data (tips dataset):
+
+    >>> tips = sns.load_dataset('tips')
+    >>> ax = snp.parallelplot(
+    ...     tips,
+    ...     vars=['total_bill', 'day', 'time', 'size'],
+    ...     hue='sex',
+    ...     alpha=0.5
+    ... )
+
+    Custom category ordering:
+
+    >>> ax = snp.parallelplot(
+    ...     tips,
+    ...     vars=['day', 'total_bill', 'tip'],
+    ...     category_orders={'day': ['Thur', 'Fri', 'Sat', 'Sun']},
+    ...     hue='time'
     ... )
     """
-    # Input validation
+    # Validate inputs
     if not isinstance(data, pd.DataFrame):
-        raise TypeError("data must be a pandas DataFrame")
+        raise TypeError(
+            f"Input data must be a pandas DataFrame, got {type(data).__name__}. "
+            "Convert your data to DataFrame first: pd.DataFrame(data)"
+        )
 
     if data.empty:
-        raise ValueError("data cannot be empty")
+        raise ValueError(
+            "Input DataFrame is empty (no rows). "
+            "Cannot create parallel coordinates plot from empty data."
+        )
 
-    if orientation not in ["vertical", "horizontal"]:
-        raise ValueError("orientation must be 'vertical' or 'horizontal'")
+    if orient not in ["v", "h", "x", "y"]:
+        raise ValueError(
+            f"Invalid orient='{orient}'. Must be one of: "
+            "'v' (vertical), 'h' (horizontal), 'x' (horizontal), or 'y' (vertical)"
+        )
 
-    # Variable selection and validation
+    # Validate hue parameter
+    if hue is not None and hue not in data.columns:
+        raise KeyError(
+            f"Hue variable '{hue}' not found in DataFrame columns. "
+            f"Available columns: {list(data.columns)}"
+        )
+
+    # Determine variables to plot
     if vars is None:
-        vars = list(data.columns)
-    missing_vars = set(vars) - set(data.columns)
-    if missing_vars:
-        raise KeyError(f"Variables not found in data: {missing_vars}")
-    if len(vars) < 2:
-        raise ValueError("At least 2 variables required for parallel plot")
-
-    # Detect categorical axes
-    if categorical_axes is None:
-        categorical_axes = [
-            col for col in vars if not pd.api.types.is_numeric_dtype(data[col])
-        ]
+        vars = [col for col in data.columns if col != hue]
     else:
-        for col in categorical_axes:
-            if col not in vars:
-                raise ValueError(f"categorical_axes column '{col}' is not in vars")
+        # Validate that all specified vars exist
+        missing_vars = [v for v in vars if v not in data.columns]
+        if missing_vars:
+            raise KeyError(
+                f"Variables not found in DataFrame: {missing_vars}. "
+                f"Available columns: {list(data.columns)}"
+            )
 
-    # Prepare data
-    df_plot = data[vars].copy()
+    if not vars:
+        raise ValueError(
+            "No variables to plot. Either the DataFrame has no columns, "
+            "or all columns were excluded. "
+            f"DataFrame columns: {list(data.columns)}, hue={hue}"
+        )
 
-    # Handle missing values
-    if df_plot.isnull().any().any():
-        warnings.warn("Missing values detected, rows will be dropped")
-        df_plot = df_plot.dropna()
-    if df_plot.empty:
-        raise ValueError("No complete cases remaining after dropping missing values")
+    if len(vars) < 2:
+        raise ValueError(
+            f"At least 2 variables required for parallel coordinates plot, got {len(vars)}. "
+            f"Variables: {vars}. "
+            "Parallel coordinates visualize relationships between multiple variables."
+        )
 
-    # Build category mappings for categorical axes
-    cat_maps = {}
-    cat_orders = {}
-    for col in categorical_axes:
-        if category_orders and col in category_orders:
-            cats = list(category_orders[col])
-        else:
-            cats = list(df_plot[col].astype(str).unique())
-        cat_orders[col] = cats
-        cat_maps[col] = {
-            cat: i / (len(cats) - 1) if len(cats) > 1 else 0.5
-            for i, cat in enumerate(cats)
-        }
-        # Map column to numeric positions for plotting
-        df_plot[col] = df_plot[col].astype(str).map(cat_maps[col])
-
-    # Warn if using wrong shared axis for orientation
-    if orientation == "vertical" and sharex:
+    # Check for missing values
+    if data[vars].isnull().any().any():
+        missing_counts = data[vars].isnull().sum()
+        missing_value_dict = missing_counts[missing_counts > 0].to_dict()
         warnings.warn(
-            "sharex=True has no effect with orientation='vertical'. "
-            "Use sharey=True to share the y-axis range instead.",
+            f"Data contains missing values (NaN) in {len(missing_value_dict)} variable(s): "
+            f"{missing_value_dict}. Lines with NaN may not be displayed.",
             UserWarning,
             stacklevel=2,
         )
 
-    if orientation == "horizontal" and sharey:
+    # Warn about incorrect axis sharing
+    if orient in ["v", "y"] and sharex:
         warnings.warn(
-            "sharey=True has no effect with orientation='horizontal'. "
+            "sharex=True has no effect with vertical orientation (orient='v'). "
+            "Use sharey=True to share the y-axis range instead.",
+            UserWarning,
+            stacklevel=2,
+        )
+    if orient in ["h", "x"] and sharey:
+        warnings.warn(
+            "sharey=True has no effect with horizontal orientation (orient='h'). "
             "Use sharex=True to share the x-axis range instead.",
             UserWarning,
             stacklevel=2,
         )
 
-    # Calculate shared range if requested (only for numeric axes)
-    numeric_vars = [v for v in vars if v not in categorical_axes]
-    shared_range = (
-        _calculate_shared_range(df_plot[numeric_vars], sharex, sharey, orientation)
-        if numeric_vars
-        else None
+    # Store original data for dtype info
+    original_data = data.copy()
+
+    # Normalize data
+    normalized_df, original_ranges, categorical_info = _normalize_data(
+        data, vars, hue, orient, sharex, sharey, category_orders
     )
 
-    # Normalize numeric data to [0,1] for plotting
-    # Categorical axes are already mapped to [0,1]
-    df_normalized = df_plot.copy()
-    ranges = {}
-    if numeric_vars:
-        normed, num_ranges = _normalize_data(df_plot[numeric_vars], shared_range)
-        for v in numeric_vars:
-            df_normalized[v] = normed[v]
-            ranges[v] = num_ranges[v]
-    for v in categorical_axes:
-        ranges[v] = tuple(cat_orders[v])  # store categories for axis labeling
-    if shared_range is not None:
-        for v in numeric_vars:
-            ranges[v] = shared_range
-
-    # Handle colors
-    colors, color_map, unique_vals = _handle_colors(
-        data.loc[df_plot.index] if hue else None, hue, palette, len(df_plot)
-    )
-
-    # Create line coordinates (pass categorical_axes and cat_orders for labeling)
-    lines = _create_line_coordinates(df_normalized, orientation)
-
-    # Setup plot
-    ax = ax or plt.gca()
-
-    # Create LineCollection
-    lc = LineCollection(
-        lines, colors=colors, alpha=alpha, linewidth=linewidth, **kwargs
-    )
-    ax.add_collection(lc)
-
-    # Configure axes (pass categorical_axes and cat_orders for labeling)
-    _configure_axes(
-        ax,
+    # Create Seaborn Objects plot
+    # Pass original categorical hue data if hue exists
+    original_hue_series = original_data[hue] if hue is not None else None
+    plot = _create_seaborn_plot(
+        normalized_df,
         vars,
-        orientation,
-        ranges,
-        shared_range,
-        unique_vals,
-        color_map,
         hue,
-        categorical_axes,
-        cat_orders,
+        orient,
+        alpha,
+        linewidth,
+        palette,
+        ax,
+        original_hue_data=original_hue_series,
+        **kwargs,
     )
 
-    return ax
+    # Render plot - this must happen within the same plotting context
+    # to inherit font sizes, line widths, etc. from seaborn contexts
+    plot_result = plot.plot()
 
-
-def _normalize_data(
-    df: pd.DataFrame, shared_range: Optional[tuple[float, float]] = None
-) -> tuple[pd.DataFrame, dict[str, tuple[float, float]]]:
-    """
-    Safely normalize data to [0,1] range and return original ranges.
-
-    Parameters
-    ----------
-    df : DataFrame
-        Data to normalize
-    shared_range : Optional[tuple[float, float]]
-        If provided, normalize all columns using this (min, max) range.
-        If None, normalize each column to its own range.
-
-    Returns
-    -------
-    tuple of (normalized_df, ranges_dict)
-        normalized_df: DataFrame with values in [0,1]
-        ranges_dict: Dict mapping column names to (min, max) tuples
-    """
-    normalized = df.copy()
-    ranges = {}
-
-    if shared_range is not None:
-        # Use shared range for all columns
-        global_min, global_max = shared_range
-        for col in df.columns:
-            ranges[col] = shared_range
-
-            if global_max == global_min:
-                # Handle constant case
-                normalized[col] = 0.5
-            else:
-                normalized[col] = (df[col] - global_min) / (global_max - global_min)
+    # Extract axes - use the provided ax if available, otherwise get from result
+    if ax is not None:
+        # User provided axes, use it directly
+        result_ax = ax
+    elif hasattr(plot_result, "_figure"):
+        # Get the axes from the rendered plot
+        fig = plot_result._figure
+        result_ax = fig.axes[0] if fig.axes else plt.gca()
     else:
-        # Normalize each column independently
-        for col in df.columns:
-            col_min, col_max = df[col].min(), df[col].max()
-            ranges[col] = (col_min, col_max)
+        result_ax = plt.gca()
 
-            if col_max == col_min:
-                # Handle constant columns
-                normalized[col] = 0.5
-            else:
-                normalized[col] = (df[col] - col_min) / (col_max - col_min)
+    # Add legend manually when hue is specified
+    if hue is not None:
+        _configure_legend(result_ax, hue, original_data)
 
-    return normalized, ranges
-
-
-def _calculate_shared_range(
-    df: pd.DataFrame, sharex: bool, sharey: bool, orientation: str
-) -> Optional[tuple[float, float]]:
-    """
-    Calculate shared range across all variables if sharing is enabled.
-
-    Parameters
-    ----------
-    df : DataFrame
-        Data to analyze
-    sharex : bool
-        Whether to share x-axis range
-    sharey : bool
-        Whether to share y-axis range
-    orientation : str
-        Plot orientation ('vertical' or 'horizontal')
-
-    Returns
-    -------
-    Optional[tuple[float, float]]
-        Global (min, max) if sharing is enabled, None otherwise
-    """
-    # Determine if we need a shared range based on orientation
-    needs_shared = (orientation == "vertical" and sharey) or (
-        orientation == "horizontal" and sharex
+    # Post-process for axes
+    use_independent = (orient in ["v", "y"] and not sharey) or (
+        orient in ["h", "x"] and not sharex
     )
 
-    if not needs_shared:
-        return None
+    # Normalize orient to 'v' or 'h'
+    normalized_orient: Literal["v", "h"] = "v" if orient in ["v", "y"] else "h"
 
-    # Calculate global min/max across all variables
-    global_min = df.min().min()
-    global_max = df.max().max()
+    # Clear axis labels (done for both independent and shared axes)
+    _clear_axis_labels(result_ax)
 
-    return (global_min, global_max)
+    if use_independent:
+        # Independent axes: custom tick labels for each variable
+        _add_independent_tick_labels(
+            result_ax,
+            vars,
+            original_ranges,
+            categorical_info,
+            original_data,
+            normalized_orient,
+        )
 
-
-def _format_axis_ticks(
-    var_range: tuple[float, float], n_ticks: int = 6
-) -> tuple[np.ndarray, list[str]]:
-    """
-    Generate tick positions and labels for an axis.
-
-    Parameters
-    ----------
-    var_range : tuple[float, float]
-        The (min, max) range for this variable
-    n_ticks : int, default 6
-        Number of ticks to generate
-
-    Returns
-    -------
-    tuple of (positions, labels)
-        positions: Array of tick positions in [0, 1] space
-        labels: List of formatted tick labels with original values
-    """
-    # Only operate on numeric ranges
-    if not (
-        isinstance(var_range, tuple)
-        and len(var_range) == 2
-        and all(isinstance(x, (int, float, np.integer, np.floating)) for x in var_range)
-    ):
-        return np.array([]), []
-
-    vmin, vmax = var_range
-
-    # Handle constant values
-    if vmax == vmin:
-        positions = np.array([0.5])
-        labels = [f"{vmin:.2g}"]
-        return positions, labels
-
-    # Generate evenly spaced positions in [0, 1]
-    positions = np.linspace(0, 1, n_ticks)
-
-    # Map back to original value range
-    original_values = vmin + positions * (vmax - vmin)
-
-    # Format labels with appropriate precision
-    value_range = vmax - vmin
-    if value_range < 0.01:
-        labels = [f"{v:.2e}" for v in original_values]
-    elif value_range < 1:
-        labels = [f"{v:.3f}" for v in original_values]
-    elif value_range < 100:
-        labels = [f"{v:.2f}" for v in original_values]
+        # Fix inverted y-axis in horizontal orientation
+        if normalized_orient == "h":
+            _fix_inverted_yaxis_if_needed(result_ax)
     else:
-        labels = [f"{v:.1f}" for v in original_values]
+        # Shared axes: fix tick labels to show original data range instead of [0, 1]
+        numeric_vars = [v for v in vars if v not in categorical_info]
+        if numeric_vars:
+            # All numeric vars have the same global range when shared scaling is used
+            global_min, global_max = original_ranges[numeric_vars[0]]
+            _fix_shared_axis_ticks(result_ax, normalized_orient, global_min, global_max)
 
-    return positions, labels
-
-
-def _handle_colors(data, hue, palette, n_rows):
-    """Handle color mapping with proper fallbacks."""
-    if hue is None or data is None:
-        default_color = sns.color_palette("deep", 1)[0]
-        return [default_color] * n_rows, None, None
-
-    if hue not in data.columns:
-        raise KeyError(f"hue column '{hue}' not found in data")
-
-    hue_data = data[hue]
-    unique_vals = sorted(hue_data.dropna().unique())
-
-    if len(unique_vals) == 0:
-        default_color = sns.color_palette("deep", 1)[0]
-        return [default_color] * n_rows, None, None
-
-    palette_colors = sns.color_palette(palette, len(unique_vals))
-    color_map = dict(zip(unique_vals, palette_colors))
-    colors = [color_map.get(val, "gray") for val in hue_data]
-
-    return colors, color_map, unique_vals
-
-
-def _create_line_coordinates(df, orientation):
-    """Create line coordinate arrays for LineCollection."""
-    n_vars = len(df.columns)
-    xs = np.arange(n_vars)
-
-    lines = []
-    for _, row in df.iterrows():
-        if orientation == "vertical":
-            line = np.column_stack([xs, row.values])
-        else:  # horizontal
-            line = np.column_stack([row.values, xs])
-        lines.append(line)
-
-    return lines
-
-
-def _configure_axes(
-    ax,
-    vars,
-    orientation,
-    ranges,
-    shared_range,
-    unique_vals,
-    color_map,
-    hue,
-    categorical_axes=None,
-    cat_orders=None,
-):
-    """Configure axis limits, labels, ticks, and legend."""
-    n_vars = len(vars)
-
-    if categorical_axes is None:
-        categorical_axes = []
-    if cat_orders is None:
-        cat_orders = {}
-
-    if orientation == "vertical":
-        ax.set_xlim(-0.1, n_vars - 0.9)
-        ax.set_ylim(-0.05, 1.05)
-        ax.set_xticks(range(n_vars))
-        ax.set_xticklabels(vars, rotation=45, ha="right")
-
-        # Set y-axis ticks for shared numeric range
-        if shared_range is not None:
-            positions, labels = _format_axis_ticks(shared_range)
-            ax.set_yticks(positions)
-            ax.set_yticklabels(labels)
-            ax.set_ylabel("Value")
-        else:
-            ax.set_yticks([])
-            ax.set_ylabel("")
-
-        # Add per-axis tick labels
-        for i, var in enumerate(vars):
-            if var in categorical_axes:
-                cats = cat_orders[var]
-                n_cats = len(cats)
-                if n_cats == 1:
-                    positions = [0.5]
-                else:
-                    positions = np.linspace(0, 1, n_cats)
-                for pos, label in zip(positions, cats):
-                    ax.text(
-                        i,
-                        pos,
-                        f"  {label}",
-                        ha="left",
-                        va="center",
-                        fontsize=8,
-                        alpha=0.9,
-                        fontweight="bold",
-                    )
-            elif shared_range is None:
-                # Numeric axis, show numeric ticks as before
-                var_range = ranges[var]
-                # Only call _format_axis_ticks if var_range is numeric
-                if (
-                    isinstance(var_range, tuple)
-                    and len(var_range) == 2
-                    and all(
-                        isinstance(x, (int, float, np.integer, np.floating))
-                        for x in var_range
-                    )
-                ):
-                    positions, labels = _format_axis_ticks(var_range)
-                    for pos, label in zip(positions, labels):
-                        ax.text(
-                            i,
-                            pos,
-                            f"  {label}",
-                            ha="left",
-                            va="center",
-                            fontsize=8,
-                            alpha=0.7,
-                        )
-
-    else:  # horizontal
-        ax.set_ylim(-0.1, n_vars - 0.9)
-        ax.set_xlim(-0.05, 1.05)
-        ax.set_yticks(range(n_vars))
-        ax.set_yticklabels(vars)
-
-        if shared_range is not None:
-            positions, labels = _format_axis_ticks(shared_range)
-            ax.set_xticks(positions)
-            ax.set_xticklabels(labels)
-            ax.set_xlabel("Value")
-        else:
-            ax.set_xticks([])
-            ax.set_xlabel("")
-
-        # Add per-axis tick labels
-        for i, var in enumerate(vars):
-            if var in categorical_axes:
-                cats = cat_orders[var]
-                n_cats = len(cats)
-                if n_cats == 1:
-                    positions = [0.5]
-                else:
-                    positions = np.linspace(0, 1, n_cats)
-                for pos, label in zip(positions, cats):
-                    ax.text(
-                        pos,
-                        i,
-                        label,
-                        ha="center",
-                        va="bottom",
-                        fontsize=8,
-                        alpha=0.9,
-                        fontweight="bold",
-                    )
-            elif shared_range is None:
-                var_range = ranges[var]
-                if (
-                    isinstance(var_range, tuple)
-                    and len(var_range) == 2
-                    and all(
-                        isinstance(x, (int, float, np.integer, np.floating))
-                        for x in var_range
-                    )
-                ):
-                    positions, labels = _format_axis_ticks(var_range)
-                    for pos, label in zip(positions, labels):
-                        ax.text(
-                            pos,
-                            i,
-                            label,
-                            ha="center",
-                            va="bottom",
-                            fontsize=8,
-                            alpha=0.7,
-                            rotation=0,
-                        )
-
-    # Add individual axis labels for each variable when not sharing ranges
-    if shared_range is None:
-        for i, var in enumerate(vars):
-            var_range = ranges[var]
-            positions, labels = _format_axis_ticks(var_range)
-
-            if orientation == "vertical":
-                # Add a secondary y-axis for each variable position
-                twin_ax = ax.twiny()
-                twin_ax.set_xlim(ax.get_xlim())
-                twin_ax.set_xticks([i])
-                twin_ax.set_xticklabels([""])
-                twin_ax.tick_params(axis="x", which="both", length=0)
-
-                # Add tick labels at the variable position
-                for pos, label in zip(positions, labels):
-                    ax.text(
-                        i,
-                        pos,
-                        f"  {label}",
-                        ha="left",
-                        va="center",
-                        fontsize=8,
-                        alpha=0.7,
-                    )
-            else:  # horizontal
-                # Add tick labels at the variable position
-                for pos, label in zip(positions, labels):
-                    ax.text(
-                        pos,
-                        i,
-                        label,
-                        ha="center",
-                        va="bottom",
-                        fontsize=8,
-                        alpha=0.7,
-                        rotation=0,
-                    )
-
-    # Add legend if hue provided
-    if unique_vals is not None and color_map is not None:
-        handles = [
-            plt.Line2D([0], [0], color=color_map[val], lw=3) for val in unique_vals
-        ]
-        ax.legend(handles, unique_vals, title=hue, loc="best")
-
-        # Apply seaborn styling
-    sns.despine(ax=ax)
-    ax.grid(True, alpha=0.3)
-
-
-if __name__ == "__main__":
-    """
-    Example usage of the parallelplot function.
-
-    This demonstrates creating a horizontal parallel coordinates plot
-    of the iris dataset with independent axis scaling.
-    """
-    import os
-
-    # Load the iris dataset
-    df = sns.load_dataset("iris")
-
-    # Create a horizontal parallel coordinates plot
-    # Each variable uses its own axis range (no shared scaling)
-    fig, ax = plt.subplots(figsize=(10, 8))
-
-    parallelplot(
-        data=df,
-        vars=["sepal_length", "sepal_width", "petal_length", "petal_width", "species"],
-        hue="species",
-        orientation="horizontal",
-        alpha=0.7,
-        linewidth=1.5,
-        ax=ax,
-    )
-
-    ax.set_title(
-        "Iris Dataset - Horizontal Parallel Coordinates\n(Independent Axis Scaling)",
-        fontsize=14,
-        fontweight="bold",
-    )
-
-    plt.tight_layout()
-
-    # Save to file
-    os.makedirs("./tmp", exist_ok=True)
-    output_path = "./tmp/parallelplot_example.png"
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    print(f"✅ Example plot saved to: {output_path}")
-
-    # Optionally show the plot (comment out for automated runs)
-    # plt.show()
+    return result_ax

@@ -1,21 +1,28 @@
 """
 Runner script for all parallel coordinates demos.
 Run with: uv run python scripts/run_all_demos.py [demo_name]
+
+Available demos:
+  - orientations: Vertical and horizontal orientations
+  - datasets: Multiple datasets (tips, flights, auto-selection)
+  - scaling: Independent vs shared axis scaling
+  - categorical_axes: Categorical variable support
+  - seaborn_contexts: Different seaborn plotting contexts (paper, notebook, talk, poster)
+  - seaborn_styles: Different seaborn styles (white, dark, whitegrid, darkgrid, ticks)
 """
 
 import sys
 import os
 import subprocess
 
-# Available demo scripts
+# Available demo scripts (consolidated and non-redundant)
 DEMOS = {
-    "iris_vertical": "demo_iris_vertical.py",
-    "iris_horizontal": "demo_iris_horizontal.py",
-    "iris_combined": "demo_iris_combined.py",
-    "tips": "demo_tips.py",
-    "auto_selection": "demo_auto_selection.py",
-    "normalization": "demo_normalization.py",
-    "custom_styling": "demo_custom_styling.py",
+    "orientations": "demo_orientations.py",
+    "datasets": "demo_datasets.py",
+    "scaling": "demo_scaling.py",
+    "categorical_axes": "demo_categorical_axes.py",
+    "seaborn_contexts": "demo_seaborn_contexts.py",
+    "seaborn_styles": "demo_seaborn_styles.py",
 }
 
 
