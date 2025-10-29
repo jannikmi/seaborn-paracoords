@@ -53,10 +53,7 @@ def demo_auto_categorical_detection():
     print("\nCategorical columns automatically detected: 'Category', 'Grade'")
     print("Numeric columns: 'Age', 'Score', 'Value'")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    snp.parallelplot(
-        data=df, hue="Category", orient="v", alpha=0.7, linewidth=1.5, ax=ax
-    )
+    ax = snp.parallelplot(data=df, hue="Category", orient="v", alpha=0.7, linewidth=1.5)
     ax.set_title(
         "Mixed Data Types: Automatic Detection\n(Categorical + Numeric Columns)",
         fontsize=14,
@@ -88,8 +85,7 @@ def demo_explicit_categorical():
     print(df)
     print("\nExplicitly setting 'category' and 'group' as categorical")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    snp.parallelplot(
+    ax = snp.parallelplot(
         data=df,
         vars=["category", "value1", "value2", "group"],
         categorical_axes=["category", "group"],
@@ -97,7 +93,6 @@ def demo_explicit_categorical():
         orient="v",
         alpha=0.7,
         linewidth=2.5,
-        ax=ax,
     )
     ax.set_title(
         "Explicit Categorical Axes\n(Multiple Categorical Variables)",
@@ -178,8 +173,7 @@ def demo_horizontal_categorical():
     print("\nUsing Iris dataset sample (30 rows)")
     print("Categorical axis: 'species'")
 
-    fig, ax = plt.subplots(figsize=(10, 8))
-    snp.parallelplot(
+    ax = snp.parallelplot(
         data=iris_sample,
         vars=["species", "sepal_length", "sepal_width", "petal_length", "petal_width"],
         hue="species",
@@ -187,7 +181,6 @@ def demo_horizontal_categorical():
         alpha=0.6,
         linewidth=1.5,
         palette="Set2",
-        ax=ax,
     )
     ax.set_title(
         "Iris Dataset - Horizontal Orientation\n(Categorical + Numeric Axes)",
@@ -228,8 +221,7 @@ def demo_multiple_categories_per_axis():
     print("\nDataset:")
     print(df)
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    snp.parallelplot(
+    ax = snp.parallelplot(
         data=df,
         vars=["region", "product", "sales", "profit"],
         categorical_axes=["region", "product"],
@@ -238,7 +230,6 @@ def demo_multiple_categories_per_axis():
         alpha=0.7,
         linewidth=2.0,
         palette="tab10",
-        ax=ax,
     )
     ax.set_title(
         "Sales Data: Multiple Categorical Axes\n(Region & Product)",
