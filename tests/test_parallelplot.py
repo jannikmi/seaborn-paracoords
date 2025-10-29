@@ -272,3 +272,23 @@ def test_sharex_sharey_combination():
     assert ax4 is not None
 
     plt.close("all")
+
+
+def test_gcf_contains_plot():
+    """Test that plt.gcf() contains the plot when ax is not explicitly provided."""
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]})
+
+    plt.close("all")  # Start with clean slate
+
+    # Call parallelplot without providing ax
+    ax = snp.parallelplot(df, vars=["a", "b", "c"])
+
+    # Get current figure
+    fig = plt.gcf()
+
+    # The returned ax should be in the current figure
+    assert ax.figure == fig, "Returned axes should be in current figure"
+    assert len(fig.axes) > 0, "Current figure should contain axes"
+    assert ax in fig.axes, "Returned axes should be in current figure's axes list"
+
+    plt.close("all")

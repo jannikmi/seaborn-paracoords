@@ -979,6 +979,11 @@ def parallelplot(
         data, vars, hue, orient, sharex, sharey, category_orders
     )
 
+    # If no axes provided, get the current axes to ensure we use the current figure
+    # This prevents Seaborn Objects from creating its own internal figure
+    if ax is None:
+        ax = plt.gca()
+
     # Create Seaborn Objects plot
     # Pass original categorical hue data if hue exists
     original_hue_series = original_data[hue] if hue is not None else None
@@ -997,18 +1002,10 @@ def parallelplot(
 
     # Render plot - this must happen within the same plotting context
     # to inherit font sizes, line widths, etc. from seaborn contexts
-    plot_result = plot.plot()
+    plot.plot()
 
-    # Extract axes - use the provided ax if available, otherwise get from result
-    if ax is not None:
-        # User provided axes, use it directly
-        result_ax = ax
-    elif hasattr(plot_result, "_figure"):
-        # Get the axes from the rendered plot
-        fig = plot_result._figure
-        result_ax = fig.axes[0] if fig.axes else plt.gca()
-    else:
-        result_ax = plt.gca()
+    # Since we always set ax to plt.gca() if None, we can use it directly
+    result_ax = ax
 
     # Add legend manually when hue is specified
     if hue is not None:

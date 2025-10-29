@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced customization options for axis styling
 - Integration with Seaborn's FacetGrid for multi-plot layouts
 
+## [0.0.4] - 2025-10-29
+
+### Fixed
+
+- **plt.gcf() integration**: Fixed bug where `plt.gcf()` would return an empty figure when `parallelplot()` was called without explicitly providing an `ax` parameter
+  - Previously, Seaborn Objects created its own internal figure separate from matplotlib's current figure
+  - Now uses `plt.gca()` when `ax=None` to ensure plot renders to the current matplotlib figure
+  - Users can now access and save plots using standard matplotlib commands: `plt.gcf().savefig('plot.png')`
+  - Added regression test `test_gcf_contains_plot()` to prevent future occurrences
+
 ## [0.0.3] - 2025-10-28
 
 ### Changed
@@ -221,7 +231,8 @@ Security-related changes
 
 ---
 
-[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/jannikmi/seaborn-paracoords/releases/tag/v0.0.1
