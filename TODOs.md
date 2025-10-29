@@ -7,6 +7,12 @@ the "grid" styles are not properly applied. the grid lines are missing
 see aggressive_workaround_demo.py for a demonstration of working code. this is however not using seaborn utils as desired.
 
 
+FEATURE
+
+- add an input parameter for specifying which variables should be displayed with inverted axis direction.
+
+
+
 MATURITY
 
 

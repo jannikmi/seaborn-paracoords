@@ -31,12 +31,9 @@ for style in styles:
     print(f"  - Creating plot with '{style}' style...")
 
     with sns.axes_style(style):
-        fig, ax = plt.subplots(figsize=(12, 6))
-
-        snp.parallelplot(
+        ax = snp.parallelplot(
             data=iris,
             hue="species",
-            ax=ax,
             alpha=0.6,
             linewidth=1.5,
         )
