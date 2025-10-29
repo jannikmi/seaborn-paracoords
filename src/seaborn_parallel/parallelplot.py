@@ -60,8 +60,23 @@ def _generate_ticks(
         # Numeric variable
         min_val, max_val = original_ranges[var]
 
+        # Adjust number of ticks based on font size to prevent overlap
+        # Base nbins on tick label size - larger fonts need fewer ticks
+        tick_fontsize = plt.rcParams.get("ytick.labelsize", 10)
+        if isinstance(tick_fontsize, str):
+            tick_fontsize = plt.rcParams.get("font.size", 10)
+
+        # Scale nbins inversely with font size
+        # paper (8.8pt) -> 6 bins, talk (16.5pt) -> 4 bins, poster (22pt) -> 3 bins
+        if tick_fontsize >= 20:
+            nbins = 3
+        elif tick_fontsize >= 14:
+            nbins = 4
+        else:
+            nbins = 6
+
         # Generate ticks using Seaborn's utility
-        locator = MaxNLocator(nbins=6)
+        locator = MaxNLocator(nbins=nbins)
         tick_vals, tick_labels = locator_to_legend_entries(
             locator, (min_val, max_val), data[var].dtype
         )
