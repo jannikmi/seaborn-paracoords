@@ -635,9 +635,15 @@ def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> No
 
     if existing_legend is None:
         _add_legend_from_line_collection(ax, hue, original_data)
+        existing_legend = ax.get_legend()
     else:
         # Legend already exists (created by seaborn objects in newer versions)
         _update_existing_legend_fonts(existing_legend)
+
+    # Position legend outside plot area on the right side
+    if existing_legend is not None:
+        existing_legend.set_bbox_to_anchor((1.05, 0.5))
+        existing_legend.set_loc("center left")
 
 
 def _configure_tick_params(ax: plt.Axes, axis: Literal["x", "y"]) -> None:
