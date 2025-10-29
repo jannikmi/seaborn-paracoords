@@ -12,6 +12,8 @@ FEATURE
 - add an input parameter for specifying which variables should be displayed with inverted axis direction.
 
 
+input parameter for adding an additional label, e.g. for describing the shared units of numeric axes (when all axes share the same unit). for horizontal orientation this would be a label below the x-axis, for vertical orientation a label left of the y-axis. the style should match the axis tick labels, the font should be slightly smaller than the tick labels.
+
 
 MATURITY
 
