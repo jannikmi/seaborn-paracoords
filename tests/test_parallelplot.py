@@ -462,3 +462,94 @@ def test_category_orders_hue_not_in_vars_horizontal():
         legend = ax.figure.legends[0]
     assert legend is not None, "Legend should exist even when hue not in vars"
     plt.close("all")
+
+
+# Test cases for flip parameter
+def test_flip_basic():
+    """Test basic flip functionality with numeric variables."""
+    df = pd.DataFrame({"x": [1, 2, 3, 4], "y": [10, 20, 30, 40]})
+
+    # With flip on one variable
+    ax = snp.parallelplot(df, vars=["x", "y"], flip=["y"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_multiple_variables():
+    """Test flip with multiple variables."""
+    df = pd.DataFrame({"a": [1, 5, 10], "b": [2, 6, 12], "c": [3, 7, 15]})
+
+    # Flip multiple variables
+    ax = snp.parallelplot(df, vars=["a", "b", "c"], flip=["a", "c"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_with_categorical():
+    """Test flip with categorical variables."""
+    df = pd.DataFrame({"category": ["A", "B", "C", "A"], "score": [10, 20, 30, 15]})
+
+    # Flip the categorical variable
+    ax = snp.parallelplot(df, vars=["category", "score"], flip=["category"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_invalid_variable_warning():
+    """Test that invalid flip variables produce warnings."""
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+
+    # Flip variable that doesn't exist in vars
+    with pytest.warns(UserWarning, match="Variables in flip parameter not found"):
+        ax = snp.parallelplot(df, vars=["a", "b"], flip=["nonexistent"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_with_orientation():
+    """Test flip with different orientations."""
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [10, 20, 30]})
+
+    # Vertical orientation
+    ax1 = snp.parallelplot(df, vars=["a", "b"], flip=["a"], orient="v")
+    assert ax1 is not None
+
+    # Horizontal orientation
+    ax2 = snp.parallelplot(df, vars=["a", "b"], flip=["b"], orient="h")
+    assert ax2 is not None
+
+    plt.close("all")
+
+
+def test_flip_with_shared_axes():
+    """Test flip with shared axis scaling."""
+    df = pd.DataFrame({"x": [1, 5, 10], "y": [2, 6, 12], "z": [3, 7, 15]})
+
+    # Vertical with sharey
+    ax1 = snp.parallelplot(
+        df, vars=["x", "y", "z"], flip=["y"], orient="v", sharey=True
+    )
+    assert ax1 is not None
+
+    # Horizontal with sharex
+    ax2 = snp.parallelplot(
+        df, vars=["x", "y", "z"], flip=["y"], orient="h", sharex=True
+    )
+    assert ax2 is not None
+
+    plt.close("all")
+
+
+def test_flip_data_integrity():
+    """Test that flip doesn't modify the original dataframe."""
+    df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    original_x = df["x"].copy()
+    original_y = df["y"].copy()
+
+    ax = snp.parallelplot(df, vars=["x", "y"], flip=["x"])
+    assert ax is not None
+
+    # Original data should remain unchanged
+    pd.testing.assert_series_equal(df["x"], original_x)
+    pd.testing.assert_series_equal(df["y"], original_y)
+    plt.close("all")
