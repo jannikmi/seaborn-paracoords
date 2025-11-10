@@ -1042,6 +1042,12 @@ def parallelplot(
     # Store original data for dtype info
     original_data = data.copy()
 
+    # Reverse category_orders for intuitive user input (top-to-bottom display)
+    if category_orders:
+        category_orders = {
+            var: list(reversed(order)) for var, order in category_orders.items()
+        }
+
     # Normalize data
     normalized_df, original_ranges, categorical_info = _normalize_data(
         data, vars, hue, orient, sharex, sharey, category_orders

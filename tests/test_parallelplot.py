@@ -225,23 +225,15 @@ def test_category_orders():
         category_orders={"cat": ["C", "B", "A"]},
     )
     assert ax is not None
-    # First label should be 'C' (custom order)
+    # With intuitive ordering, 'C' should appear at the top (last in matplotlib coords)
     cat_labels = [
         t.get_text().strip()
         for t in ax.texts
         if t.get_text().strip() in ["A", "B", "C"]
     ]
-    assert cat_labels[0] == "C"
-    plt.close("all")
-    """Test that original axis values are shown by default."""
-    df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30]})
-
-    # Default behavior should show original values
-    ax = snp.parallelplot(df, orient="v")
-    assert ax is not None
-    # Y-axis should be in [0, 1] range for plotting space
-    ylim = ax.get_ylim()
-    assert ylim[0] < 0.1 and ylim[1] > 0.9
+    # The order should reflect the user's specification (top-to-bottom): C, B, A
+    # Matplotlib renders bottom-to-top, so the last label is 'C' (top)
+    assert cat_labels[-1] == "C", f"Expected 'C' at top, got labels: {cat_labels}"
     plt.close("all")
 
 

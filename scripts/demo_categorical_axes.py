@@ -278,8 +278,8 @@ def demo_category_orders_with_hue():
     print("\n📊 Plot 1: Colors follow order of first appearance in data")
     snp.parallelplot(
         data=df,
-        vars=["duration_hours", "success_rate"],
-        # vars=["status", "duration_hours", "success_rate"],
+        # vars=["duration_hours", "success_rate"],
+        vars=["status", "duration_hours", "success_rate"],
         hue="status",
         orient="v",
         alpha=0.7,
@@ -287,26 +287,27 @@ def demo_category_orders_with_hue():
         ax=ax1,
     )
     ax1.set_title(
-        "Without category_orders\n(Colors: pending→completed→failed)",
+        "Without category_orders",
         fontsize=12,
         fontweight="bold",
     )
 
     # Plot 2: With custom order (colors follow our specified order)
+    val_order = ["completed", "failed", "pending"]
     print("📊 Plot 2: Colors follow category_orders specification")
     snp.parallelplot(
         data=df,
-        vars=["duration_hours", "success_rate"],
-        # vars=["status", "duration_hours", "success_rate"],
+        # vars=["duration_hours", "success_rate"],
+        vars=["status", "duration_hours", "success_rate"],
         hue="status",
-        category_orders={"status": ["completed", "failed", "pending"]},
+        category_orders={"status": val_order},
         orient="v",
         alpha=0.7,
         linewidth=2.5,
         ax=ax2,
     )
     ax2.set_title(
-        "With category_orders\n(Colors: completed→failed→pending)",
+        f"With category_orders\n(Colors: {val_order})",
         fontsize=12,
         fontweight="bold",
     )
