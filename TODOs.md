@@ -1,8 +1,8 @@
+# TODOs
 
 
-FEATURE
 
-- add an input parameter for specifying which variables should be displayed with inverted axis direction.
+## FEATURE
 
 
 input parameter for adding an additional label, e.g. for describing the shared units of numeric axes (when all axes share the same unit). for horizontal orientation this would be a label below the x-axis, for vertical orientation a label left of the y-axis. the style should match the axis tick labels, the font should be slightly smaller than the tick labels.
@@ -11,7 +11,7 @@ input parameter for tick label formatting. could be a format string or a callabl
 
 
 
-BUGFIX
+### BUGFIXes
 
 the "grid" styles are not properly applied. the grid lines are missing
 
@@ -20,7 +20,9 @@ see aggressive_workaround_demo.py for a demonstration of working code. this is h
 
 
 
-MATURITY
+## MATURITY
+
+simplify the test cases. use parameterisation wherever possible. apply the DRY principle
 
 
 clean up all outdated prototype and experimentation code and results.
@@ -37,7 +39,7 @@ get rid of all local imports and move them to the top of the module
 
 
 
-DOCUMENTATION
+## DOCUMENTATION
 
 
 include remarks in the project documentation that this project aims at wrapping and extending seaborn code as much as possible without duplicating functionality.
@@ -53,7 +55,7 @@ Mention the design decision to keep the core logic inside a single module file. 
 
 
 
-EDGE CASE HANDLING
+## EDGE CASE HANDLING
 
 desired edge case handling: as soon as there are entries of None, inf etc. treat the column as a non-continous categorical column.
 output a warning in such cases.

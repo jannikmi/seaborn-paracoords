@@ -26,6 +26,7 @@ def _generate_ticks(
     original_ranges: Dict[str, Tuple[float, float]],
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
+    flip: Optional[List[str]] = None,
 ) -> Tuple[List, List, np.ndarray]:
     """
     Generate tick values, labels, and normalized positions for a variable.
@@ -40,6 +41,8 @@ def _generate_ticks(
         Categorical variable information
     data : DataFrame
         Original data (for dtypes)
+    flip : list of str, optional
+        Variables whose axes should be reversed
 
     Returns
     -------
@@ -88,6 +91,11 @@ def _generate_ticks(
         else:
             norm_ticks = np.array([0.5])
 
+    # Apply flip transformation to normalized tick positions
+    is_flipped = flip is not None and var in flip
+    if is_flipped:
+        norm_ticks = 1 - norm_ticks
+
     return tick_vals, tick_labels, norm_ticks
 
 
@@ -99,6 +107,7 @@ def _draw_axis_with_ticks(
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
     orient: Literal["v", "h"],
+    flip: Optional[List[str]] = None,
 ) -> None:
     """
     Draw a single axis with ticks and labels.
@@ -119,10 +128,12 @@ def _draw_axis_with_ticks(
         Original data (for dtypes)
     orient : {'v', 'h'}
         Orientation
+    flip : list of str, optional
+        Variables whose axes should be reversed
     """
     # Generate ticks
     tick_vals, tick_labels, norm_ticks = _generate_ticks(
-        var, original_ranges, categorical_info, data
+        var, original_ranges, categorical_info, data, flip
     )
 
     # Determine if categorical for text rotation
@@ -209,6 +220,7 @@ def _normalize_data(
     sharex: bool,
     sharey: bool,
     category_orders: Optional[Dict[str, List]] = None,
+    flip: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Tuple[float, float]], Dict[str, dict]]:
     """
     Normalize data to [0, 1] range for plotting.
@@ -229,6 +241,8 @@ def _normalize_data(
         Share y-axis range (for vertical)
     category_orders : dict, optional
         Custom category orders
+    flip : list of str, optional
+        Variables whose axes should be reversed (flipped)
 
     Returns
     -------
@@ -324,6 +338,12 @@ def _normalize_data(
             normalized_df[var] = 0.5
 
         original_ranges[var] = (0, len(categories) - 1)
+
+    # Apply flip transformations (invert normalized values)
+    if flip:
+        for var in flip:
+            if var in vars:
+                normalized_df[var] = 1 - normalized_df[var]
 
     return normalized_df, original_ranges, categorical_info
 
@@ -769,6 +789,7 @@ def _add_independent_tick_labels(
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
     orient: Literal["v", "h"],
+    flip: Optional[List[str]] = None,
 ) -> None:
     """
     Add independent tick labels for both orientations.
@@ -787,6 +808,8 @@ def _add_independent_tick_labels(
         Original data (for dtypes)
     orient : {'v', 'h'}
         Orientation
+    flip : list of str, optional
+        Variables whose axes should be reversed
     """
     # For independent axes, we draw custom tick labels for values on each variable axis,
     # but keep the variable names on the cross-axis (x for vertical, y for horizontal)
@@ -807,7 +830,14 @@ def _add_independent_tick_labels(
     # Add independent axis for each variable
     for i, var in enumerate(vars):
         _draw_axis_with_ticks(
-            ax, var, i, original_ranges, categorical_info, data, orient=orient
+            ax,
+            var,
+            i,
+            original_ranges,
+            categorical_info,
+            data,
+            orient=orient,
+            flip=flip,
         )
 
 
@@ -824,6 +854,7 @@ def parallelplot(
     sharey: bool = False,
     categorical_axes: Optional[List[str]] = None,
     category_orders: Optional[Dict[str, List]] = None,
+    flip: Optional[List[str]] = None,
     **kwargs: Any,
 ) -> plt.Axes:
     """
@@ -878,6 +909,12 @@ def parallelplot(
         Custom ordering for categorical variables. Keys are variable names, values
         are lists specifying the desired category order.
         Example: {'species': ['setosa', 'versicolor', 'virginica']}
+    flip : list of str, optional
+        Variables whose axes should be reversed (flipped). Specified variables will
+        display values from high to low instead of low to high. Works with both
+        numeric and categorical variables. Useful for emphasizing negative correlations
+        or aligning scales for better visual comparison.
+        Example: ['sepal_width', 'petal_width']
     **kwargs
         Additional keyword arguments passed to seaborn.objects.Lines().
         Common options: 'color', 'linestyle', 'marker', etc.
@@ -958,6 +995,16 @@ def parallelplot(
     ...     vars=['day', 'total_bill', 'tip'],
     ...     category_orders={'day': ['Thur', 'Fri', 'Sat', 'Sun']},
     ...     hue='time'
+    ... )
+
+    Flip axes to reverse specific variables:
+
+    >>> iris = sns.load_dataset('iris')
+    >>> ax = snp.parallelplot(
+    ...     iris,
+    ...     flip=['sepal_width'],
+    ...     category_orders={'species': ['setosa', 'versicolor', 'virginica']},
+    ...     hue='species'
     ... )
     """
     # Validate inputs
@@ -1042,6 +1089,21 @@ def parallelplot(
     # Store original data for dtype info
     original_data = data.copy()
 
+    # Validate flip parameter
+    if flip is not None:
+        invalid_flip = [v for v in flip if v not in vars]
+        if invalid_flip:
+            warnings.warn(
+                f"Variables in flip parameter not found in vars: {invalid_flip}. "
+                f"Available variables: {vars}. These will be ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
+            # Filter out invalid variables
+            flip = [v for v in flip if v in vars]
+            if not flip:
+                flip = None
+
     # Reverse category_orders for intuitive user input (top-to-bottom display)
     if category_orders:
         category_orders = {
@@ -1050,7 +1112,7 @@ def parallelplot(
 
     # Normalize data
     normalized_df, original_ranges, categorical_info = _normalize_data(
-        data, vars, hue, orient, sharex, sharey, category_orders
+        data, vars, hue, orient, sharex, sharey, category_orders, flip
     )
 
     # Extract ordered categories for hue if it's categorical
@@ -1130,6 +1192,7 @@ def parallelplot(
             categorical_info,
             original_data,
             normalized_orient,
+            flip,
         )
 
         # Fix inverted y-axis in horizontal orientation

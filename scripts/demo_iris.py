@@ -1,5 +1,6 @@
 """
-Demo: Iris Dataset - Classic Parallel Coordinates Example
+script for generating the demo thubmnail for the project
+
 Run with: uv run python scripts/demo_iris.py
 """
 
@@ -21,12 +22,12 @@ def main():
     snp.parallelplot(
         data=iris,
         vars=["sepal_length", "sepal_width", "petal_length", "petal_width", "species"],
-        # flip=["sepal_width"],
+        flip=["sepal_width"],
         hue="species",
         orient="h",
     )
 
-    plt.title("Iris Dataset - Horizontal Orientation", fontsize=12, fontweight="bold")
+    plt.title("Visualisation of the Iris Dataset", fontsize=12, fontweight="bold")
     plt.tight_layout()
 
     output_path = "demo.png"
