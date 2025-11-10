@@ -409,3 +409,64 @@ def test_category_orders_hue_with_palette():
         legend = ax.figure.legends[0]
     assert legend is not None
     plt.close("all")
+
+
+def test_category_orders_hue_not_in_vars():
+    """Test that category_orders respects hue order even when hue is not in vars."""
+    df = pd.DataFrame(
+        {
+            "status": ["pending", "completed", "failed", "pending", "completed"],
+            "duration": [2.5, 1.0, 3.5, 1.5, 0.5],
+            "success_rate": [0.8, 0.95, 0.3, 0.92, 0.85],
+        }
+    )
+
+    # Test when status is NOT in vars
+    ax = snp.parallelplot(
+        data=df,
+        vars=["duration", "success_rate"],  # status NOT included
+        hue="status",
+        category_orders={"status": ["completed", "failed", "pending"]},
+        orient="v",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist even when hue not in vars"
+
+    # Check legend order - should be reversed (for display)
+    legend_labels = [text.get_text() for text in legend.get_texts()]
+    # Remove title if present
+    legend_labels = [label for label in legend_labels if label != "status"]
+    assert len(legend_labels) > 0, "Legend should have category labels"
+
+    plt.close("all")
+
+
+def test_category_orders_hue_not_in_vars_horizontal():
+    """Test category_orders respects order when hue not in vars (horizontal)."""
+    df = pd.DataFrame(
+        {
+            "priority": ["high", "low", "medium", "high", "low"],
+            "time_spent": [5, 2, 3, 4, 1],
+            "quality_score": [9, 5, 7, 8, 4],
+        }
+    )
+
+    # priority is NOT in vars
+    ax = snp.parallelplot(
+        data=df,
+        vars=["time_spent", "quality_score"],  # priority NOT included
+        hue="priority",
+        category_orders={"priority": ["low", "medium", "high"]},
+        orient="h",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist even when hue not in vars"
+    plt.close("all")

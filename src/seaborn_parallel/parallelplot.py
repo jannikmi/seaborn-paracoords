@@ -1049,8 +1049,27 @@ def parallelplot(
 
     # Extract ordered categories for hue if it's categorical
     hue_categories = None
-    if hue is not None and hue in categorical_info:
-        hue_categories = categorical_info[hue].get("categories")
+    if hue is not None:
+        # Check if hue was already processed in _normalize_data (it would be in categorical_info)
+        if hue in categorical_info:
+            hue_categories = categorical_info[hue].get("categories")
+        else:
+            # Hue was not in vars, so it wasn't processed by _normalize_data
+            # Check if it's categorical and apply category_orders if provided
+            if hue in data.columns:
+                dtype = data[hue].dtype
+                is_categorical = (
+                    pd.api.types.is_bool_dtype(dtype)
+                    or pd.api.types.is_datetime64_any_dtype(dtype)
+                    or not pd.api.types.is_numeric_dtype(dtype)
+                )
+
+                if is_categorical:
+                    # Determine the category order for the hue column
+                    if category_orders and hue in category_orders:
+                        hue_categories = category_orders[hue]
+                    else:
+                        hue_categories = data[hue].unique().tolist()
 
     # If no axes provided, get the current axes to ensure we use the current figure
     # This prevents Seaborn Objects from creating its own internal figure

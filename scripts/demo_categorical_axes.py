@@ -278,7 +278,8 @@ def demo_category_orders_with_hue():
     print("\n📊 Plot 1: Colors follow order of first appearance in data")
     snp.parallelplot(
         data=df,
-        vars=["status", "duration_hours", "success_rate"],
+        vars=["duration_hours", "success_rate"],
+        # vars=["status", "duration_hours", "success_rate"],
         hue="status",
         orient="v",
         alpha=0.7,
@@ -295,7 +296,8 @@ def demo_category_orders_with_hue():
     print("📊 Plot 2: Colors follow category_orders specification")
     snp.parallelplot(
         data=df,
-        vars=["status", "duration_hours", "success_rate"],
+        vars=["duration_hours", "success_rate"],
+        # vars=["status", "duration_hours", "success_rate"],
         hue="status",
         category_orders={"status": ["completed", "failed", "pending"]},
         orient="v",
