@@ -338,6 +338,7 @@ def _create_seaborn_plot(
     palette: Optional[str],
     ax: Optional[plt.Axes],
     original_hue_data: Optional[pd.Series] = None,
+    hue_categories: Optional[List] = None,
     **kwargs,
 ) -> so.Plot:
     """
@@ -363,6 +364,9 @@ def _create_seaborn_plot(
         Axes to plot on
     original_hue_data : Series or None
         Original (non-normalized) hue data for categorical variables
+    hue_categories : list or None
+        Ordered categories for categorical hue variable. If provided,
+        ensures colors are assigned in this order.
     **kwargs
         Additional arguments for so.Lines()
 
@@ -383,21 +387,31 @@ def _create_seaborn_plot(
     # If hue is in vars, we need to duplicate it so it appears both as a grouping
     # variable and as a plotted variable
     if hue is not None and hue in vars:
-        # Create a duplicate column for hue so it can be both an id_var and a value_var
-        # IMPORTANT: Use the ORIGINAL (non-normalized) data for the hue column
-        # to preserve categorical values for proper legend display
+        # Use original data for hue to preserve categorical values
         if original_hue_data is not None:
-            plot_data["_hue_for_color"] = original_hue_data.values
+            # Convert to categorical with specified order if provided
+            if hue_categories is not None:
+                hue_data: Any = pd.Categorical(
+                    original_hue_data, categories=hue_categories, ordered=False
+                )
+            else:
+                hue_data = original_hue_data
+            plot_data["_hue_for_color"] = hue_data
         else:
-            plot_data["_hue_for_color"] = data[
-                hue
-            ]  # Fallback to normalized if not provided
+            plot_data["_hue_for_color"] = data[hue]
         hue_col_for_plot = "_hue_for_color"
-        hue_legend_title = hue  # Remember original hue name for legend
+        hue_legend_title = hue
     else:
-        # Hue is not in vars, use original data if provided, otherwise normalized
+        # Hue is not in vars
         if original_hue_data is not None:
-            plot_data[hue] = original_hue_data.values
+            # Convert to categorical with specified order if provided
+            if hue_categories is not None:
+                hue_data = pd.Categorical(
+                    original_hue_data, categories=hue_categories, ordered=False
+                )
+            else:
+                hue_data = original_hue_data
+            plot_data[hue] = hue_data
         hue_col_for_plot = hue
         hue_legend_title = hue
 
@@ -527,9 +541,7 @@ def _get_unique_colors(colors: Any) -> List:
     return unique_colors
 
 
-def _create_legend_handles(
-    colors: Any, hue_values: np.ndarray
-) -> Tuple[List, List[str]]:
+def _create_legend_handles(colors: Any, hue_values: Any) -> Tuple[List, List[str]]:
     """
     Create legend handles and labels from colors and hue values.
 
@@ -537,8 +549,8 @@ def _create_legend_handles(
     ----------
     colors : Any
         Array of colors from LineCollection
-    hue_values : ndarray
-        Unique hue values
+    hue_values : Any
+        Unique hue values (can be ndarray or list)
 
     Returns
     -------
@@ -582,7 +594,10 @@ def _clear_figure_legends(ax: plt.Axes) -> None:
 
 
 def _add_legend_from_line_collection(
-    ax: plt.Axes, hue: str, original_data: pd.DataFrame
+    ax: plt.Axes,
+    hue: str,
+    original_data: pd.DataFrame,
+    hue_categories: Optional[List] = None,
 ) -> None:
     """
     Create and add legend from LineCollection colors.
@@ -595,10 +610,19 @@ def _add_legend_from_line_collection(
         Hue variable name
     original_data : DataFrame
         Original (non-normalized) data
+    hue_categories : list or None
+        Ordered categories for the hue variable. If provided, legend order
+        will follow this ordering.
     """
     from matplotlib.collections import LineCollection
 
-    hue_values = original_data[hue].unique()
+    if hue_categories is not None:
+        # Use the provided ordered categories as numpy array for consistency
+        hue_values = np.array(hue_categories)
+    else:
+        # Use unique values from data (in order of appearance)
+        hue_values = original_data[hue].unique()
+
     line_collections = [c for c in ax.collections if isinstance(c, LineCollection)]
 
     if line_collections:
@@ -633,7 +657,12 @@ def _update_existing_legend_fonts(legend: Any) -> None:
     legend.get_title().set_fontsize(plt.rcParams["legend.title_fontsize"])
 
 
-def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> None:
+def _configure_legend(
+    ax: plt.Axes,
+    hue: str,
+    original_data: pd.DataFrame,
+    hue_categories: Optional[List] = None,
+) -> None:
     """
     Configure legend for hue variable.
 
@@ -645,11 +674,14 @@ def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> No
         Hue variable name
     original_data : DataFrame
         Original (non-normalized) data
+    hue_categories : list or None
+        Ordered categories for the hue variable. If provided, legend order
+        will follow this ordering.
     """
     existing_legend = ax.get_legend()
 
     if existing_legend is None:
-        _add_legend_from_line_collection(ax, hue, original_data)
+        _add_legend_from_line_collection(ax, hue, original_data, hue_categories)
         existing_legend = ax.get_legend()
     else:
         # Legend already exists (created by seaborn objects in newer versions)
@@ -1000,6 +1032,11 @@ def parallelplot(
         data, vars, hue, orient, sharex, sharey, category_orders
     )
 
+    # Extract ordered categories for hue if it's categorical
+    hue_categories = None
+    if hue is not None and hue in categorical_info:
+        hue_categories = categorical_info[hue].get("categories")
+
     # If no axes provided, get the current axes to ensure we use the current figure
     # This prevents Seaborn Objects from creating its own internal figure
     if ax is None:
@@ -1018,6 +1055,7 @@ def parallelplot(
         palette,
         ax,
         original_hue_data=original_hue_series,
+        hue_categories=hue_categories,
         **kwargs,
     )
 
@@ -1030,7 +1068,7 @@ def parallelplot(
 
     # Add legend manually when hue is specified
     if hue is not None:
-        _configure_legend(result_ax, hue, original_data)
+        _configure_legend(result_ax, hue, original_data, hue_categories)
 
     # Post-process for axes
     use_independent = (orient in ["v", "y"] and not sharey) or (

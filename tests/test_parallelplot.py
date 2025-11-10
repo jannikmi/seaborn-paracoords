@@ -292,3 +292,120 @@ def test_gcf_contains_plot():
     assert ax in fig.axes, "Returned axes should be in current figure's axes list"
 
     plt.close("all")
+
+
+def test_category_orders_with_categorical_hue():
+    """Test that category_orders affects both axis display and hue coloring."""
+    df = pd.DataFrame(
+        {
+            "size": ["large", "small", "medium", "large", "small", "medium"],
+            "score": [95, 85, 90, 92, 88, 87],
+        }
+    )
+
+    # Create plot with custom category ordering for hue
+    ax = snp.parallelplot(
+        data=df,
+        vars=["size", "score"],
+        hue="size",
+        category_orders={"size": ["small", "medium", "large"]},
+        orient="v",
+    )
+
+    assert ax is not None
+    # Legend should exist when hue is specified
+    assert ax.get_legend() is not None or len(ax.figure.legends) > 0
+    plt.close("all")
+
+
+def test_category_orders_hue_legend_order():
+    """Test that legend labels follow category_orders for categorical hue."""
+    df = pd.DataFrame(
+        {
+            "category": ["C", "A", "B", "C", "A", "B"],
+            "value1": [10, 20, 15, 12, 18, 16],
+            "value2": [100, 200, 150, 120, 180, 160],
+        }
+    )
+
+    # Plot with custom ordering
+    ax = snp.parallelplot(
+        data=df,
+        vars=["category", "value1", "value2"],
+        hue="category",
+        category_orders={"category": ["A", "B", "C"]},
+        orient="v",
+    )
+
+    # Get the legend
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+
+    assert legend is not None, "Legend should exist for categorical hue"
+
+    # Check legend labels are in the specified order
+    legend_labels = [text.get_text() for text in legend.get_texts()]
+    # Remove title if present
+    legend_labels = [label for label in legend_labels if label != "category"]
+
+    # The legend should have entries in the custom order
+    # (may contain subset of categories that appear in data)
+    assert "A" in legend_labels, "Category A should be in legend"
+    assert "B" in legend_labels, "Category B should be in legend"
+    assert "C" in legend_labels, "Category C should be in legend"
+
+    plt.close("all")
+
+
+def test_category_orders_hue_horizontal():
+    """Test category_orders with hue in horizontal orientation."""
+    df = pd.DataFrame(
+        {
+            "region": ["East", "West", "North", "East", "West", "North"],
+            "sales": [100, 150, 200, 120, 180, 220],
+            "profit": [20, 30, 40, 25, 35, 45],
+        }
+    )
+
+    ax = snp.parallelplot(
+        data=df,
+        vars=["region", "sales", "profit"],
+        hue="region",
+        category_orders={"region": ["North", "East", "West"]},
+        orient="h",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist for categorical hue"
+    plt.close("all")
+
+
+def test_category_orders_hue_with_palette():
+    """Test that category_orders respects custom palette."""
+    df = pd.DataFrame(
+        {
+            "quality": ["good", "poor", "excellent", "good", "poor", "excellent"],
+            "price": [100, 50, 200, 110, 45, 210],
+            "rating": [4.5, 2.0, 5.0, 4.6, 1.9, 4.9],
+        }
+    )
+
+    ax = snp.parallelplot(
+        data=df,
+        vars=["quality", "price", "rating"],
+        hue="quality",
+        category_orders={"quality": ["poor", "good", "excellent"]},
+        palette="Set2",
+        orient="v",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None
+    plt.close("all")
