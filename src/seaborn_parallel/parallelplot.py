@@ -379,41 +379,32 @@ def _create_seaborn_plot(
     plot_data = data.copy()
     plot_data["_index"] = range(len(plot_data))
 
-    # Initialize variables with proper types
-    hue_col_for_plot: Optional[str] = None
-    hue_legend_title: Optional[str] = None
-
-    # Handle the case where hue variable is also in vars
-    # If hue is in vars, we need to duplicate it so it appears both as a grouping
-    # variable and as a plotted variable
-    if hue is not None and hue in vars:
-        # Use original data for hue to preserve categorical values
-        if original_hue_data is not None:
-            # Convert to categorical with specified order if provided
-            if hue_categories is not None:
-                hue_data: Any = pd.Categorical(
-                    original_hue_data, categories=hue_categories, ordered=False
-                )
-            else:
-                hue_data = original_hue_data
-            plot_data["_hue_for_color"] = hue_data
+    # Prepare hue data with optional categorical ordering
+    hue_data: Any = None
+    if hue is not None and original_hue_data is not None:
+        if hue_categories is not None:
+            hue_data = pd.Categorical(
+                original_hue_data, categories=hue_categories, ordered=False
+            )
         else:
-            plot_data["_hue_for_color"] = data[hue]
-        hue_col_for_plot = "_hue_for_color"
+            hue_data = original_hue_data
+
+    # Assign hue data to plot_data
+    if hue is not None:
+        if hue in vars:
+            # Hue is plotted as a variable - duplicate it for grouping
+            plot_data["_hue_for_color"] = (
+                hue_data if hue_data is not None else data[hue]
+            )
+            hue_col_for_plot = "_hue_for_color"
+        else:
+            # Hue is not plotted - use it directly for coloring
+            plot_data[hue] = hue_data if hue_data is not None else data[hue]
+            hue_col_for_plot = hue
         hue_legend_title = hue
     else:
-        # Hue is not in vars
-        if original_hue_data is not None:
-            # Convert to categorical with specified order if provided
-            if hue_categories is not None:
-                hue_data = pd.Categorical(
-                    original_hue_data, categories=hue_categories, ordered=False
-                )
-            else:
-                hue_data = original_hue_data
-            plot_data[hue] = hue_data
-        hue_col_for_plot = hue
-        hue_legend_title = hue
+        hue_col_for_plot = None
+        hue_legend_title = None
 
     # Select only the variables we want to plot
     id_vars = ["_index"]
@@ -424,6 +415,13 @@ def _create_seaborn_plot(
     melted = plot_data.melt(
         id_vars=id_vars, value_vars=vars, var_name="variable", value_name="value"
     )
+
+    # Ensure hue column maintains categorical order for consistent coloring
+    if hue_categories is not None and hue_col_for_plot is not None:
+        if hue_col_for_plot in melted.columns:
+            melted[hue_col_for_plot] = pd.Categorical(
+                melted[hue_col_for_plot], categories=hue_categories, ordered=False
+            )
 
     # Create plot
     if orient in ["v", "y"]:
@@ -439,6 +437,9 @@ def _create_seaborn_plot(
     )
 
     # Configure palette and legend
+    # Apply custom palette if provided
+    # Note: When hue_categories is specified, Seaborn Objects automatically respects
+    # the Categorical dtype ordering (set in _prepare_hue_data) for color assignment.
     if palette is not None:
         plot = plot.scale(color=palette)  # type: ignore[arg-type]
 
@@ -541,7 +542,9 @@ def _get_unique_colors(colors: Any) -> List:
     return unique_colors
 
 
-def _create_legend_handles(colors: Any, hue_values: Any) -> Tuple[List, List[str]]:
+def _create_legend_handles(
+    colors: Any, hue_values: Any, reverse_colors: bool = False
+) -> Tuple[List, List[str]]:
     """
     Create legend handles and labels from colors and hue values.
 
@@ -551,6 +554,8 @@ def _create_legend_handles(colors: Any, hue_values: Any) -> Tuple[List, List[str
         Array of colors from LineCollection
     hue_values : Any
         Unique hue values (can be ndarray or list)
+    reverse_colors : bool
+        If True, reverse the color order to match reversed hue_values
 
     Returns
     -------
@@ -564,6 +569,11 @@ def _create_legend_handles(colors: Any, hue_values: Any) -> Tuple[List, List[str
     unique_colors = _get_unique_colors(colors)
     default_alpha = _extract_legend_alpha(colors)
 
+    # Get the colors for this hue (may be reversed)
+    colors_to_use = unique_colors[: len(hue_values)]
+    if reverse_colors:
+        colors_to_use = list(reversed(colors_to_use))
+
     handles = [
         Line2D(
             [0],
@@ -572,7 +582,7 @@ def _create_legend_handles(colors: Any, hue_values: Any) -> Tuple[List, List[str
             linewidth=2,
             alpha=default_alpha,
         )
-        for color in unique_colors[: len(hue_values)]
+        for color in colors_to_use
     ]
     labels = [str(val) for val in hue_values]
 
@@ -616,9 +626,12 @@ def _add_legend_from_line_collection(
     """
     from matplotlib.collections import LineCollection
 
+    should_reverse = hue_categories is not None
+
     if hue_categories is not None:
         # Use the provided ordered categories as numpy array for consistency
-        hue_values = np.array(hue_categories)
+        # Reverse them for the legend display (inverted order)
+        hue_values = np.array(list(reversed(hue_categories)))
     else:
         # Use unique values from data (in order of appearance)
         hue_values = original_data[hue].unique()
@@ -629,7 +642,9 @@ def _add_legend_from_line_collection(
         lc = line_collections[0]
         colors = lc.get_colors()
 
-        handles, labels = _create_legend_handles(colors, hue_values)
+        handles, labels = _create_legend_handles(
+            colors, hue_values, reverse_colors=should_reverse
+        )
 
         _clear_figure_legends(ax)
 
