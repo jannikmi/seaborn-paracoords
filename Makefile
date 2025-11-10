@@ -28,6 +28,12 @@ force_update:
 outdated:
 	@uv pip list --outdated
 
+demos:
+	uv run python scripts/run_all_demos.py
+
+thumb:
+	uv run python scripts/demo_iris.py
+
 
 hook:
 	@uv run pre-commit install

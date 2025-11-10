@@ -12,6 +12,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced customization options for axis styling
 - Integration with Seaborn's FacetGrid for multi-plot layouts
 
+## [0.0.5] - 2025-11-10
+
+### Added
+
+- **Axis Flipping Feature**: New `flip` parameter to reverse coordinate axes
+  - Accepts list of variable names whose axes should be reversed (flipped)
+  - Works with both numeric and categorical variables
+  - Compatible with both vertical and horizontal orientations
+  - Compatible with shared axes (`sharex`/`sharey`), hue coloring, and `category_orders`
+  - Useful for emphasizing negative correlations or aligning scales for visual comparison
+  - Example: `parallelplot(iris, flip=['sepal_width'], hue='species')`
+  - Validates input and warns about invalid variable names
+  - Added 7 comprehensive test cases for flip functionality
+
+- **Enhanced Category Ordering**: Improved `category_orders` parameter behavior
+  - Now respects category orders for hue variables even when hue is not in `vars`
+  - Better color consistency across different plot configurations
+  - More intuitive top-to-bottom ordering (user input is automatically reversed for display)
+
+- **Demo Scripts**: New iris dataset demonstration script
+  - `demo_iris.py`: Showcases iris dataset with flip feature and category ordering
+
+### Changed
+
+- **Category Order Reversal**: User-provided category orders are now automatically reversed for intuitive top-to-bottom display
+  - When you specify `category_orders={'species': ['setosa', 'versicolor', 'virginica']}`, they appear in that order from top to bottom
+  - Internal implementation handles the reversal automatically
+  - More natural and expected behavior for users
+
+### Fixed
+
+- **Category Color Ordering**: Fixed color assignment to respect `category_orders` for categorical hue variables
+  - Colors now consistently map to categories in the specified order
+  - Legend entries appear in the expected order
+  - Applies to both cases: when hue is in `vars` and when it's not
+
+### Technical Details
+
+**Implementation of Flip Feature**:
+- Normalization phase: After normalizing to [0, 1], inverts flipped variables using `1 - normalized_value`
+- Tick generation: Reverses tick positions for flipped axes
+- Simple design that works seamlessly with existing rendering pipeline
+- No special cases needed for different orientations or scaling modes
+
+**Test Coverage**:
+- Basic flip functionality with numeric variables
+- Multiple variables flipped simultaneously
+- Flip with categorical variables
+- Invalid variable name validation
+- Both orientations (vertical/horizontal)
+- Shared axis compatibility
+- Data integrity verification (original data unchanged)
+
 ## [0.0.4] - 2025-10-29
 
 ### Fixed
@@ -231,7 +284,8 @@ Security-related changes
 
 ---
 
-[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/jannikmi/seaborn-paracoords/compare/v0.0.1...v0.0.2

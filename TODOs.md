@@ -1,27 +1,32 @@
-
-BUGFIX
-
-the "grid" styles are not properly applied. the grid lines are missing
-
-- make ticks align with grid lines
-see aggressive_workaround_demo.py for a demonstration of working code. this is however not using seaborn utils as desired.
+# TODOs
 
 
-FEATURE
 
-- add an input parameter for specifying which variables should be displayed with inverted axis direction.
+## FEATURE
 
 
 input parameter for adding an additional label, e.g. for describing the shared units of numeric axes (when all axes share the same unit). for horizontal orientation this would be a label below the x-axis, for vertical orientation a label left of the y-axis. the style should match the axis tick labels, the font should be slightly smaller than the tick labels.
 
+input parameter for tick label formatting. could be a format string or a callable function. this should be applied to all axes, both categorical and numeric.
 
-MATURITY
+
+
+### BUGFIXes
+
+the "grid" styles are not properly applied. the grid lines are missing
+
+related: make ticks align with grid lines
+see aggressive_workaround_demo.py for a demonstration of working code. this is however not using seaborn utils as desired.
+
+
+
+## MATURITY
+
+simplify the test cases. use parameterisation wherever possible. apply the DRY principle
 
 
 clean up all outdated prototype and experimentation code and results.
 only keep usage examples useful for the users or developers.
-
-
 
 
 refactor this repository: the project's official name now is "seaborn-paracoords"
@@ -34,7 +39,7 @@ get rid of all local imports and move them to the top of the module
 
 
 
-DOCUMENTATION
+## DOCUMENTATION
 
 
 include remarks in the project documentation that this project aims at wrapping and extending seaborn code as much as possible without duplicating functionality.
@@ -49,10 +54,9 @@ document clearly to the user that the ordering of the columns in the dataframe w
 Mention the design decision to keep the core logic inside a single module file. This file can be downloaded and used standalone if needed.
 
 
-Add the instruction to alway run the pre-commit hooks after every completed change with "make hook" to the Agents.md file
 
+## EDGE CASE HANDLING
 
-EDGE CASE HANDLING
 desired edge case handling: as soon as there are entries of None, inf etc. treat the column as a non-continous categorical column.
 output a warning in such cases.
 

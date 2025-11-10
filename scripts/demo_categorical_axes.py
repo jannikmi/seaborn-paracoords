@@ -243,6 +243,84 @@ def demo_multiple_categories_per_axis():
     plt.close()
 
 
+def demo_category_orders_with_hue():
+    """Demo 6: category_orders affects both axis AND hue coloring."""
+    print("\n" + "=" * 70)
+    print("Demo 6: Category Orders Affecting Hue Coloring")
+    print("=" * 70)
+
+    # Create a dataset with categorical hue that appears in non-alphabetical order
+    df = pd.DataFrame(
+        {
+            "status": [
+                "pending",
+                "completed",
+                "failed",
+                "completed",
+                "pending",
+                "failed",
+            ],
+            "duration_hours": [2.5, 1.0, 3.5, 1.5, 0.5, 2.0],
+            "success_rate": [0.8, 0.95, 0.3, 0.92, 0.85, 0.4],
+        }
+    )
+
+    print("\nDataset:")
+    print(df)
+    print("\n🎯 Key insight: When using category_orders with a categorical hue,")
+    print("   colors are assigned in the specified order, not data order!")
+    print("\nStatus order in data: pending → completed → failed → ...")
+    print("Specified order:      completed → failed → pending")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Plot 1: Without custom order (colors follow data order)
+    print("\n📊 Plot 1: Colors follow order of first appearance in data")
+    snp.parallelplot(
+        data=df,
+        # vars=["duration_hours", "success_rate"],
+        vars=["status", "duration_hours", "success_rate"],
+        hue="status",
+        orient="v",
+        alpha=0.7,
+        linewidth=2.5,
+        ax=ax1,
+    )
+    ax1.set_title(
+        "Without category_orders",
+        fontsize=12,
+        fontweight="bold",
+    )
+
+    # Plot 2: With custom order (colors follow our specified order)
+    val_order = ["completed", "failed", "pending"]
+    print("📊 Plot 2: Colors follow category_orders specification")
+    snp.parallelplot(
+        data=df,
+        # vars=["duration_hours", "success_rate"],
+        vars=["status", "duration_hours", "success_rate"],
+        hue="status",
+        category_orders={"status": val_order},
+        orient="v",
+        alpha=0.7,
+        linewidth=2.5,
+        ax=ax2,
+    )
+    ax2.set_title(
+        f"With category_orders\n(Colors: {val_order})",
+        fontsize=12,
+        fontweight="bold",
+    )
+
+    plt.tight_layout()
+    output_path = "./tmp/seaborn-paracoords_demo_category_orders_hue.png"
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    print(f"✅ Saved: {output_path}")
+    print("\n💡 Notice how the legend order and line colors change between plots!")
+    print("   This is because category_orders now affects hue color assignment.")
+    plt.close()
+
+
 if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("CATEGORICAL AXES DEMO - Parallel Coordinates Plot")
@@ -253,6 +331,7 @@ if __name__ == "__main__":
     demo_custom_category_order()
     demo_horizontal_categorical()
     demo_multiple_categories_per_axis()
+    demo_category_orders_with_hue()
 
     print("\n" + "=" * 70)
     print("✅ All demos completed successfully!")
@@ -263,4 +342,5 @@ if __name__ == "__main__":
     print("  - seaborn-paracoords_demo_categorical_custom_order.png")
     print("  - seaborn-paracoords_demo_categorical_horizontal.png")
     print("  - seaborn-paracoords_demo_categorical_multiple.png")
+    print("  - seaborn-paracoords_demo_category_orders_hue.png")
     print()

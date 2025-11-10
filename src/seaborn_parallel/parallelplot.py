@@ -26,6 +26,7 @@ def _generate_ticks(
     original_ranges: Dict[str, Tuple[float, float]],
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
+    flip: Optional[List[str]] = None,
 ) -> Tuple[List, List, np.ndarray]:
     """
     Generate tick values, labels, and normalized positions for a variable.
@@ -40,6 +41,8 @@ def _generate_ticks(
         Categorical variable information
     data : DataFrame
         Original data (for dtypes)
+    flip : list of str, optional
+        Variables whose axes should be reversed
 
     Returns
     -------
@@ -88,6 +91,11 @@ def _generate_ticks(
         else:
             norm_ticks = np.array([0.5])
 
+    # Apply flip transformation to normalized tick positions
+    is_flipped = flip is not None and var in flip
+    if is_flipped:
+        norm_ticks = 1 - norm_ticks
+
     return tick_vals, tick_labels, norm_ticks
 
 
@@ -99,6 +107,7 @@ def _draw_axis_with_ticks(
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
     orient: Literal["v", "h"],
+    flip: Optional[List[str]] = None,
 ) -> None:
     """
     Draw a single axis with ticks and labels.
@@ -119,10 +128,12 @@ def _draw_axis_with_ticks(
         Original data (for dtypes)
     orient : {'v', 'h'}
         Orientation
+    flip : list of str, optional
+        Variables whose axes should be reversed
     """
     # Generate ticks
     tick_vals, tick_labels, norm_ticks = _generate_ticks(
-        var, original_ranges, categorical_info, data
+        var, original_ranges, categorical_info, data, flip
     )
 
     # Determine if categorical for text rotation
@@ -209,6 +220,7 @@ def _normalize_data(
     sharex: bool,
     sharey: bool,
     category_orders: Optional[Dict[str, List]] = None,
+    flip: Optional[List[str]] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Tuple[float, float]], Dict[str, dict]]:
     """
     Normalize data to [0, 1] range for plotting.
@@ -229,6 +241,8 @@ def _normalize_data(
         Share y-axis range (for vertical)
     category_orders : dict, optional
         Custom category orders
+    flip : list of str, optional
+        Variables whose axes should be reversed (flipped)
 
     Returns
     -------
@@ -325,6 +339,12 @@ def _normalize_data(
 
         original_ranges[var] = (0, len(categories) - 1)
 
+    # Apply flip transformations (invert normalized values)
+    if flip:
+        for var in flip:
+            if var in vars:
+                normalized_df[var] = 1 - normalized_df[var]
+
     return normalized_df, original_ranges, categorical_info
 
 
@@ -338,6 +358,7 @@ def _create_seaborn_plot(
     palette: Optional[str],
     ax: Optional[plt.Axes],
     original_hue_data: Optional[pd.Series] = None,
+    hue_categories: Optional[List] = None,
     **kwargs,
 ) -> so.Plot:
     """
@@ -363,6 +384,9 @@ def _create_seaborn_plot(
         Axes to plot on
     original_hue_data : Series or None
         Original (non-normalized) hue data for categorical variables
+    hue_categories : list or None
+        Ordered categories for categorical hue variable. If provided,
+        ensures colors are assigned in this order.
     **kwargs
         Additional arguments for so.Lines()
 
@@ -375,31 +399,32 @@ def _create_seaborn_plot(
     plot_data = data.copy()
     plot_data["_index"] = range(len(plot_data))
 
-    # Initialize variables with proper types
-    hue_col_for_plot: Optional[str] = None
-    hue_legend_title: Optional[str] = None
-
-    # Handle the case where hue variable is also in vars
-    # If hue is in vars, we need to duplicate it so it appears both as a grouping
-    # variable and as a plotted variable
-    if hue is not None and hue in vars:
-        # Create a duplicate column for hue so it can be both an id_var and a value_var
-        # IMPORTANT: Use the ORIGINAL (non-normalized) data for the hue column
-        # to preserve categorical values for proper legend display
-        if original_hue_data is not None:
-            plot_data["_hue_for_color"] = original_hue_data.values
+    # Prepare hue data with optional categorical ordering
+    hue_data: Any = None
+    if hue is not None and original_hue_data is not None:
+        if hue_categories is not None:
+            hue_data = pd.Categorical(
+                original_hue_data, categories=hue_categories, ordered=False
+            )
         else:
-            plot_data["_hue_for_color"] = data[
-                hue
-            ]  # Fallback to normalized if not provided
-        hue_col_for_plot = "_hue_for_color"
-        hue_legend_title = hue  # Remember original hue name for legend
-    else:
-        # Hue is not in vars, use original data if provided, otherwise normalized
-        if original_hue_data is not None:
-            plot_data[hue] = original_hue_data.values
-        hue_col_for_plot = hue
+            hue_data = original_hue_data
+
+    # Assign hue data to plot_data
+    if hue is not None:
+        if hue in vars:
+            # Hue is plotted as a variable - duplicate it for grouping
+            plot_data["_hue_for_color"] = (
+                hue_data if hue_data is not None else data[hue]
+            )
+            hue_col_for_plot = "_hue_for_color"
+        else:
+            # Hue is not plotted - use it directly for coloring
+            plot_data[hue] = hue_data if hue_data is not None else data[hue]
+            hue_col_for_plot = hue
         hue_legend_title = hue
+    else:
+        hue_col_for_plot = None
+        hue_legend_title = None
 
     # Select only the variables we want to plot
     id_vars = ["_index"]
@@ -410,6 +435,13 @@ def _create_seaborn_plot(
     melted = plot_data.melt(
         id_vars=id_vars, value_vars=vars, var_name="variable", value_name="value"
     )
+
+    # Ensure hue column maintains categorical order for consistent coloring
+    if hue_categories is not None and hue_col_for_plot is not None:
+        if hue_col_for_plot in melted.columns:
+            melted[hue_col_for_plot] = pd.Categorical(
+                melted[hue_col_for_plot], categories=hue_categories, ordered=False
+            )
 
     # Create plot
     if orient in ["v", "y"]:
@@ -425,6 +457,9 @@ def _create_seaborn_plot(
     )
 
     # Configure palette and legend
+    # Apply custom palette if provided
+    # Note: When hue_categories is specified, Seaborn Objects automatically respects
+    # the Categorical dtype ordering (set in _prepare_hue_data) for color assignment.
     if palette is not None:
         plot = plot.scale(color=palette)  # type: ignore[arg-type]
 
@@ -528,7 +563,7 @@ def _get_unique_colors(colors: Any) -> List:
 
 
 def _create_legend_handles(
-    colors: Any, hue_values: np.ndarray
+    colors: Any, hue_values: Any, reverse_colors: bool = False
 ) -> Tuple[List, List[str]]:
     """
     Create legend handles and labels from colors and hue values.
@@ -537,8 +572,10 @@ def _create_legend_handles(
     ----------
     colors : Any
         Array of colors from LineCollection
-    hue_values : ndarray
-        Unique hue values
+    hue_values : Any
+        Unique hue values (can be ndarray or list)
+    reverse_colors : bool
+        If True, reverse the color order to match reversed hue_values
 
     Returns
     -------
@@ -552,6 +589,11 @@ def _create_legend_handles(
     unique_colors = _get_unique_colors(colors)
     default_alpha = _extract_legend_alpha(colors)
 
+    # Get the colors for this hue (may be reversed)
+    colors_to_use = unique_colors[: len(hue_values)]
+    if reverse_colors:
+        colors_to_use = list(reversed(colors_to_use))
+
     handles = [
         Line2D(
             [0],
@@ -560,7 +602,7 @@ def _create_legend_handles(
             linewidth=2,
             alpha=default_alpha,
         )
-        for color in unique_colors[: len(hue_values)]
+        for color in colors_to_use
     ]
     labels = [str(val) for val in hue_values]
 
@@ -582,7 +624,10 @@ def _clear_figure_legends(ax: plt.Axes) -> None:
 
 
 def _add_legend_from_line_collection(
-    ax: plt.Axes, hue: str, original_data: pd.DataFrame
+    ax: plt.Axes,
+    hue: str,
+    original_data: pd.DataFrame,
+    hue_categories: Optional[List] = None,
 ) -> None:
     """
     Create and add legend from LineCollection colors.
@@ -595,17 +640,31 @@ def _add_legend_from_line_collection(
         Hue variable name
     original_data : DataFrame
         Original (non-normalized) data
+    hue_categories : list or None
+        Ordered categories for the hue variable. If provided, legend order
+        will follow this ordering.
     """
     from matplotlib.collections import LineCollection
 
-    hue_values = original_data[hue].unique()
+    should_reverse = hue_categories is not None
+
+    if hue_categories is not None:
+        # Use the provided ordered categories as numpy array for consistency
+        # Reverse them for the legend display (inverted order)
+        hue_values = np.array(list(reversed(hue_categories)))
+    else:
+        # Use unique values from data (in order of appearance)
+        hue_values = original_data[hue].unique()
+
     line_collections = [c for c in ax.collections if isinstance(c, LineCollection)]
 
     if line_collections:
         lc = line_collections[0]
         colors = lc.get_colors()
 
-        handles, labels = _create_legend_handles(colors, hue_values)
+        handles, labels = _create_legend_handles(
+            colors, hue_values, reverse_colors=should_reverse
+        )
 
         _clear_figure_legends(ax)
 
@@ -633,7 +692,12 @@ def _update_existing_legend_fonts(legend: Any) -> None:
     legend.get_title().set_fontsize(plt.rcParams["legend.title_fontsize"])
 
 
-def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> None:
+def _configure_legend(
+    ax: plt.Axes,
+    hue: str,
+    original_data: pd.DataFrame,
+    hue_categories: Optional[List] = None,
+) -> None:
     """
     Configure legend for hue variable.
 
@@ -645,11 +709,14 @@ def _configure_legend(ax: plt.Axes, hue: str, original_data: pd.DataFrame) -> No
         Hue variable name
     original_data : DataFrame
         Original (non-normalized) data
+    hue_categories : list or None
+        Ordered categories for the hue variable. If provided, legend order
+        will follow this ordering.
     """
     existing_legend = ax.get_legend()
 
     if existing_legend is None:
-        _add_legend_from_line_collection(ax, hue, original_data)
+        _add_legend_from_line_collection(ax, hue, original_data, hue_categories)
         existing_legend = ax.get_legend()
     else:
         # Legend already exists (created by seaborn objects in newer versions)
@@ -722,6 +789,7 @@ def _add_independent_tick_labels(
     categorical_info: Dict[str, dict],
     data: pd.DataFrame,
     orient: Literal["v", "h"],
+    flip: Optional[List[str]] = None,
 ) -> None:
     """
     Add independent tick labels for both orientations.
@@ -740,6 +808,8 @@ def _add_independent_tick_labels(
         Original data (for dtypes)
     orient : {'v', 'h'}
         Orientation
+    flip : list of str, optional
+        Variables whose axes should be reversed
     """
     # For independent axes, we draw custom tick labels for values on each variable axis,
     # but keep the variable names on the cross-axis (x for vertical, y for horizontal)
@@ -760,7 +830,14 @@ def _add_independent_tick_labels(
     # Add independent axis for each variable
     for i, var in enumerate(vars):
         _draw_axis_with_ticks(
-            ax, var, i, original_ranges, categorical_info, data, orient=orient
+            ax,
+            var,
+            i,
+            original_ranges,
+            categorical_info,
+            data,
+            orient=orient,
+            flip=flip,
         )
 
 
@@ -777,6 +854,7 @@ def parallelplot(
     sharey: bool = False,
     categorical_axes: Optional[List[str]] = None,
     category_orders: Optional[Dict[str, List]] = None,
+    flip: Optional[List[str]] = None,
     **kwargs: Any,
 ) -> plt.Axes:
     """
@@ -831,6 +909,12 @@ def parallelplot(
         Custom ordering for categorical variables. Keys are variable names, values
         are lists specifying the desired category order.
         Example: {'species': ['setosa', 'versicolor', 'virginica']}
+    flip : list of str, optional
+        Variables whose axes should be reversed (flipped). Specified variables will
+        display values from high to low instead of low to high. Works with both
+        numeric and categorical variables. Useful for emphasizing negative correlations
+        or aligning scales for better visual comparison.
+        Example: ['sepal_width', 'petal_width']
     **kwargs
         Additional keyword arguments passed to seaborn.objects.Lines().
         Common options: 'color', 'linestyle', 'marker', etc.
@@ -911,6 +995,16 @@ def parallelplot(
     ...     vars=['day', 'total_bill', 'tip'],
     ...     category_orders={'day': ['Thur', 'Fri', 'Sat', 'Sun']},
     ...     hue='time'
+    ... )
+
+    Flip axes to reverse specific variables:
+
+    >>> iris = sns.load_dataset('iris')
+    >>> ax = snp.parallelplot(
+    ...     iris,
+    ...     flip=['sepal_width'],
+    ...     category_orders={'species': ['setosa', 'versicolor', 'virginica']},
+    ...     hue='species'
     ... )
     """
     # Validate inputs
@@ -995,10 +1089,55 @@ def parallelplot(
     # Store original data for dtype info
     original_data = data.copy()
 
+    # Validate flip parameter
+    if flip is not None:
+        invalid_flip = [v for v in flip if v not in vars]
+        if invalid_flip:
+            warnings.warn(
+                f"Variables in flip parameter not found in vars: {invalid_flip}. "
+                f"Available variables: {vars}. These will be ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
+            # Filter out invalid variables
+            flip = [v for v in flip if v in vars]
+            if not flip:
+                flip = None
+
+    # Reverse category_orders for intuitive user input (top-to-bottom display)
+    if category_orders:
+        category_orders = {
+            var: list(reversed(order)) for var, order in category_orders.items()
+        }
+
     # Normalize data
     normalized_df, original_ranges, categorical_info = _normalize_data(
-        data, vars, hue, orient, sharex, sharey, category_orders
+        data, vars, hue, orient, sharex, sharey, category_orders, flip
     )
+
+    # Extract ordered categories for hue if it's categorical
+    hue_categories = None
+    if hue is not None:
+        # Check if hue was already processed in _normalize_data (it would be in categorical_info)
+        if hue in categorical_info:
+            hue_categories = categorical_info[hue].get("categories")
+        else:
+            # Hue was not in vars, so it wasn't processed by _normalize_data
+            # Check if it's categorical and apply category_orders if provided
+            if hue in data.columns:
+                dtype = data[hue].dtype
+                is_categorical = (
+                    pd.api.types.is_bool_dtype(dtype)
+                    or pd.api.types.is_datetime64_any_dtype(dtype)
+                    or not pd.api.types.is_numeric_dtype(dtype)
+                )
+
+                if is_categorical:
+                    # Determine the category order for the hue column
+                    if category_orders and hue in category_orders:
+                        hue_categories = category_orders[hue]
+                    else:
+                        hue_categories = data[hue].unique().tolist()
 
     # If no axes provided, get the current axes to ensure we use the current figure
     # This prevents Seaborn Objects from creating its own internal figure
@@ -1018,6 +1157,7 @@ def parallelplot(
         palette,
         ax,
         original_hue_data=original_hue_series,
+        hue_categories=hue_categories,
         **kwargs,
     )
 
@@ -1030,7 +1170,7 @@ def parallelplot(
 
     # Add legend manually when hue is specified
     if hue is not None:
-        _configure_legend(result_ax, hue, original_data)
+        _configure_legend(result_ax, hue, original_data, hue_categories)
 
     # Post-process for axes
     use_independent = (orient in ["v", "y"] and not sharey) or (
@@ -1052,6 +1192,7 @@ def parallelplot(
             categorical_info,
             original_data,
             normalized_orient,
+            flip,
         )
 
         # Fix inverted y-axis in horizontal orientation

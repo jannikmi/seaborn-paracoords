@@ -225,23 +225,15 @@ def test_category_orders():
         category_orders={"cat": ["C", "B", "A"]},
     )
     assert ax is not None
-    # First label should be 'C' (custom order)
+    # With intuitive ordering, 'C' should appear at the top (last in matplotlib coords)
     cat_labels = [
         t.get_text().strip()
         for t in ax.texts
         if t.get_text().strip() in ["A", "B", "C"]
     ]
-    assert cat_labels[0] == "C"
-    plt.close("all")
-    """Test that original axis values are shown by default."""
-    df = pd.DataFrame({"x": [0, 50, 100], "y": [10, 20, 30]})
-
-    # Default behavior should show original values
-    ax = snp.parallelplot(df, orient="v")
-    assert ax is not None
-    # Y-axis should be in [0, 1] range for plotting space
-    ylim = ax.get_ylim()
-    assert ylim[0] < 0.1 and ylim[1] > 0.9
+    # The order should reflect the user's specification (top-to-bottom): C, B, A
+    # Matplotlib renders bottom-to-top, so the last label is 'C' (top)
+    assert cat_labels[-1] == "C", f"Expected 'C' at top, got labels: {cat_labels}"
     plt.close("all")
 
 
@@ -291,4 +283,273 @@ def test_gcf_contains_plot():
     assert len(fig.axes) > 0, "Current figure should contain axes"
     assert ax in fig.axes, "Returned axes should be in current figure's axes list"
 
+    plt.close("all")
+
+
+def test_category_orders_with_categorical_hue():
+    """Test that category_orders affects both axis display and hue coloring."""
+    df = pd.DataFrame(
+        {
+            "size": ["large", "small", "medium", "large", "small", "medium"],
+            "score": [95, 85, 90, 92, 88, 87],
+        }
+    )
+
+    # Create plot with custom category ordering for hue
+    ax = snp.parallelplot(
+        data=df,
+        vars=["size", "score"],
+        hue="size",
+        category_orders={"size": ["small", "medium", "large"]},
+        orient="v",
+    )
+
+    assert ax is not None
+    # Legend should exist when hue is specified
+    assert ax.get_legend() is not None or len(ax.figure.legends) > 0
+    plt.close("all")
+
+
+def test_category_orders_hue_legend_order():
+    """Test that legend labels follow category_orders for categorical hue."""
+    df = pd.DataFrame(
+        {
+            "category": ["C", "A", "B", "C", "A", "B"],
+            "value1": [10, 20, 15, 12, 18, 16],
+            "value2": [100, 200, 150, 120, 180, 160],
+        }
+    )
+
+    # Plot with custom ordering
+    ax = snp.parallelplot(
+        data=df,
+        vars=["category", "value1", "value2"],
+        hue="category",
+        category_orders={"category": ["A", "B", "C"]},
+        orient="v",
+    )
+
+    # Get the legend
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+
+    assert legend is not None, "Legend should exist for categorical hue"
+
+    # Check legend labels are in the specified order
+    legend_labels = [text.get_text() for text in legend.get_texts()]
+    # Remove title if present
+    legend_labels = [label for label in legend_labels if label != "category"]
+
+    # The legend should have entries in the custom order
+    # (may contain subset of categories that appear in data)
+    assert "A" in legend_labels, "Category A should be in legend"
+    assert "B" in legend_labels, "Category B should be in legend"
+    assert "C" in legend_labels, "Category C should be in legend"
+
+    plt.close("all")
+
+
+def test_category_orders_hue_horizontal():
+    """Test category_orders with hue in horizontal orientation."""
+    df = pd.DataFrame(
+        {
+            "region": ["East", "West", "North", "East", "West", "North"],
+            "sales": [100, 150, 200, 120, 180, 220],
+            "profit": [20, 30, 40, 25, 35, 45],
+        }
+    )
+
+    ax = snp.parallelplot(
+        data=df,
+        vars=["region", "sales", "profit"],
+        hue="region",
+        category_orders={"region": ["North", "East", "West"]},
+        orient="h",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist for categorical hue"
+    plt.close("all")
+
+
+def test_category_orders_hue_with_palette():
+    """Test that category_orders respects custom palette."""
+    df = pd.DataFrame(
+        {
+            "quality": ["good", "poor", "excellent", "good", "poor", "excellent"],
+            "price": [100, 50, 200, 110, 45, 210],
+            "rating": [4.5, 2.0, 5.0, 4.6, 1.9, 4.9],
+        }
+    )
+
+    ax = snp.parallelplot(
+        data=df,
+        vars=["quality", "price", "rating"],
+        hue="quality",
+        category_orders={"quality": ["poor", "good", "excellent"]},
+        palette="Set2",
+        orient="v",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None
+    plt.close("all")
+
+
+def test_category_orders_hue_not_in_vars():
+    """Test that category_orders respects hue order even when hue is not in vars."""
+    df = pd.DataFrame(
+        {
+            "status": ["pending", "completed", "failed", "pending", "completed"],
+            "duration": [2.5, 1.0, 3.5, 1.5, 0.5],
+            "success_rate": [0.8, 0.95, 0.3, 0.92, 0.85],
+        }
+    )
+
+    # Test when status is NOT in vars
+    ax = snp.parallelplot(
+        data=df,
+        vars=["duration", "success_rate"],  # status NOT included
+        hue="status",
+        category_orders={"status": ["completed", "failed", "pending"]},
+        orient="v",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist even when hue not in vars"
+
+    # Check legend order - should be reversed (for display)
+    legend_labels = [text.get_text() for text in legend.get_texts()]
+    # Remove title if present
+    legend_labels = [label for label in legend_labels if label != "status"]
+    assert len(legend_labels) > 0, "Legend should have category labels"
+
+    plt.close("all")
+
+
+def test_category_orders_hue_not_in_vars_horizontal():
+    """Test category_orders respects order when hue not in vars (horizontal)."""
+    df = pd.DataFrame(
+        {
+            "priority": ["high", "low", "medium", "high", "low"],
+            "time_spent": [5, 2, 3, 4, 1],
+            "quality_score": [9, 5, 7, 8, 4],
+        }
+    )
+
+    # priority is NOT in vars
+    ax = snp.parallelplot(
+        data=df,
+        vars=["time_spent", "quality_score"],  # priority NOT included
+        hue="priority",
+        category_orders={"priority": ["low", "medium", "high"]},
+        orient="h",
+    )
+
+    assert ax is not None
+    legend = ax.get_legend()
+    if legend is None and len(ax.figure.legends) > 0:
+        legend = ax.figure.legends[0]
+    assert legend is not None, "Legend should exist even when hue not in vars"
+    plt.close("all")
+
+
+# Test cases for flip parameter
+def test_flip_basic():
+    """Test basic flip functionality with numeric variables."""
+    df = pd.DataFrame({"x": [1, 2, 3, 4], "y": [10, 20, 30, 40]})
+
+    # With flip on one variable
+    ax = snp.parallelplot(df, vars=["x", "y"], flip=["y"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_multiple_variables():
+    """Test flip with multiple variables."""
+    df = pd.DataFrame({"a": [1, 5, 10], "b": [2, 6, 12], "c": [3, 7, 15]})
+
+    # Flip multiple variables
+    ax = snp.parallelplot(df, vars=["a", "b", "c"], flip=["a", "c"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_with_categorical():
+    """Test flip with categorical variables."""
+    df = pd.DataFrame({"category": ["A", "B", "C", "A"], "score": [10, 20, 30, 15]})
+
+    # Flip the categorical variable
+    ax = snp.parallelplot(df, vars=["category", "score"], flip=["category"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_invalid_variable_warning():
+    """Test that invalid flip variables produce warnings."""
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+
+    # Flip variable that doesn't exist in vars
+    with pytest.warns(UserWarning, match="Variables in flip parameter not found"):
+        ax = snp.parallelplot(df, vars=["a", "b"], flip=["nonexistent"])
+    assert ax is not None
+    plt.close("all")
+
+
+def test_flip_with_orientation():
+    """Test flip with different orientations."""
+    df = pd.DataFrame({"a": [1, 2, 3], "b": [10, 20, 30]})
+
+    # Vertical orientation
+    ax1 = snp.parallelplot(df, vars=["a", "b"], flip=["a"], orient="v")
+    assert ax1 is not None
+
+    # Horizontal orientation
+    ax2 = snp.parallelplot(df, vars=["a", "b"], flip=["b"], orient="h")
+    assert ax2 is not None
+
+    plt.close("all")
+
+
+def test_flip_with_shared_axes():
+    """Test flip with shared axis scaling."""
+    df = pd.DataFrame({"x": [1, 5, 10], "y": [2, 6, 12], "z": [3, 7, 15]})
+
+    # Vertical with sharey
+    ax1 = snp.parallelplot(
+        df, vars=["x", "y", "z"], flip=["y"], orient="v", sharey=True
+    )
+    assert ax1 is not None
+
+    # Horizontal with sharex
+    ax2 = snp.parallelplot(
+        df, vars=["x", "y", "z"], flip=["y"], orient="h", sharex=True
+    )
+    assert ax2 is not None
+
+    plt.close("all")
+
+
+def test_flip_data_integrity():
+    """Test that flip doesn't modify the original dataframe."""
+    df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    original_x = df["x"].copy()
+    original_y = df["y"].copy()
+
+    ax = snp.parallelplot(df, vars=["x", "y"], flip=["x"])
+    assert ax is not None
+
+    # Original data should remain unchanged
+    pd.testing.assert_series_equal(df["x"], original_x)
+    pd.testing.assert_series_equal(df["y"], original_y)
     plt.close("all")

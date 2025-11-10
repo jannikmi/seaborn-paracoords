@@ -16,7 +16,7 @@ Guide AI agents working on this parallel coordinates visualization library. This
 ### Critical Rules
 
 - **Always use `uv run`** for Python commands
-- **Install pre-commit hooks** with `make hook` before making changes
+- **run the pre-commit hooks** with `make hook` after making changes and ensure all checks pass
 - **Run tests before committing**: `uv run pytest tests/` or `make test-parallel`
 - See `Makefile` for additional commands (`make install`, `make update`, etc.)
 
