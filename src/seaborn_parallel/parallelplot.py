@@ -321,9 +321,9 @@ def _normalize_data(
     for var in categorical_vars:
         # Use custom order if provided, otherwise use data order
         if category_orders and var in category_orders:
-            categories = category_orders[var]
+            categories = list(category_orders[var])
         else:
-            categories = categorical_info[var]["categories"]
+            categories = list(categorical_info[var]["categories"])
 
         categorical_info[var]["categories"] = categories
 

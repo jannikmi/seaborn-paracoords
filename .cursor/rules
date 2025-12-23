@@ -1,6 +1,7 @@
 # Cursor Rules for seaborn-paracoords
 
 - Use `uv run` for all Python commands.
+- skip leading `cd ... &&` prefixes unless the command truly needs a subdirectory context.
 - After changes, run pre-commit hooks via `make hook`.
 - Run tests before committing: `uv run pytest tests/` or `make test-parallel`.
 - Main implementation lives in `src/seaborn_parallel/parallelplot.py`; demos in `scripts/demo_*.py`; tests in `tests/test_parallelplot.py`; generated outputs go to `tmp/`.
