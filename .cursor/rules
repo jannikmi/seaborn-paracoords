@@ -1,0 +1,10 @@
+# Cursor Rules for seaborn-paracoords
+
+- Use `uv run` for all Python commands.
+- After changes, run pre-commit hooks via `make hook`.
+- Run tests before committing: `uv run pytest tests/` or `make test-parallel`.
+- Main implementation lives in `src/seaborn_parallel/parallelplot.py`; demos in `scripts/demo_*.py`; tests in `tests/test_parallelplot.py`; generated outputs go to `tmp/`.
+- Orientation vs. shared scaling: vertical + shared scale → `sharey=True`; horizontal + shared scale → `sharex=True`; default preserves original ranges.
+- Testing should cover orientations, hue/no-hue, shared vs independent scaling, and axis labels/ticks.
+- Follow ruff/isort formatting, add type hints to new functions, and update docstrings for API changes.
+- For large datasets, adjust `alpha`/`linewidth` to keep plots readable (matplotlib slows with many lines).
