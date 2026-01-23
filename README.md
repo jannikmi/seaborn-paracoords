@@ -7,6 +7,8 @@
 
 A prototype implementation of parallel coordinates plots compatible with Seaborn's API and styling system.
 
+Motivated by the official feature request in [Seaborn Issue #3879](https://github.com/mwaskom/seaborn/issues/3879) being rejected. 
+
 ![Demo](demo.png)
 
 ## Motivation
